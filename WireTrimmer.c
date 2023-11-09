@@ -22,19 +22,29 @@
 struct menu
 {
    char           *MenuOptions[16];          // Arreglo de cadenas de caracteres
-   int            OptionMaxIndex;              // Maximo indice para MenuOptions
-   signed int     ActualOption;               // Indice actual para MenuOptions
+   int            OptionMaxIndex;            // Maximo indice para MenuOptions
+   signed int     ActualOption;              // Indice actual para MenuOptions
+};
+
+struct stepmotor
+{
+   int16          Steps[4];                  // Pines de cada paso del motor
+   signed int     PosIndex;                  // Posicion actual del motor
 };
 
 //  Prototipos de funcion  //
 void MenuSelect(struct menu*);
-void MotorStep(int16 Amount ,int1 BoolM1, int1 BoolM2, char turnDirection);
-
+void MotorSteps(int16 Amount, struct stepmotor*, int1 turnDirection); // Se mueve un motor "Amount" veces
+void MotorSteps(int16 Amount, struct stepmotor*, struct stepmotor*, int1 turnDirection); // Sobrecarga para mover 2 motores a la vez
 
 void main()
 {
    // Defino los menus
    struct menu Principal = {{"Realizar Corte", "Configuraciones"}, 1, 0};
+   
+   // Defino los motores a pasos
+   struct stepmotor WireMotor1 = {{PIN_B0, PIN_B1, PIN_B2, PIN_B3}, 0};
+   struct stepmotor WireMotor2 = {{PIN_B4, PIN_B5, PIN_B6, PIN_B7}, 0};
    
    // Mensaje Introductorio
    lcd_init();       lcd_gotoxy(3,1);
@@ -93,41 +103,37 @@ void MenuSelect(struct menu* OpenMenu) // Funcion para impresion y seleccion de 
    }
 }
 
-void MotorStep(int16 Amount, int1 BoolM1, int1 BoolM2, int1 turnDirection) // 1 = Izquierda | 0 = Derecha | M1 = Motor 1 | M2 = Bandera Motor 2
-{
-   static int16   posM1 = PIN_B0 - 1, posM2 = PIN_B4 - 1;
-   
-   for(int i = 0; i < Amount; i++)
+void MotorSteps(int16 Amount, struct stepmotor* Motor1, int1 turnDirection) // Movimiento de un solo motor
+{   
+   for(int16 i = 0; i < Amount; i++)
    {
       // Establecer siguiente paso
-      (turnDirection && BoolM1) ? posM1++ : (BoolM1 ? posM1-- : 0);
-      (turnDirection && BoolM2) ? posM2++ : (BoolM2 ? posM2-- : 0);
+      turnDirection ? Motor1->PosIndex++ : Motor1->PosIndex--;
       
       // Corregir desborde de paso
-      (posM1 > PIN_B3) ? (posM1 = PIN_B0) : (posM1 < PIN_B0 ? (posM1 = PIN_B3) : 0);
-      (posM2 > PIN_B7) ? (posM2 = PIN_B4) : (posM2 < PIN_B4 ? (posM2 = PIN_B7) : 0);
-   
+      (Motor1->PosIndex < 0) ? (Motor1->PosIndex = 3) : ((Motor1->PosIndex > 3) ? (Motor1->PosIndex = 0) : 0);
       
-      if (BoolM1 && BoolM2)                           // Los 2 motores se mueven
-      {
-         output_high(posM1);     output_high(posM2);
-         delay_ms(delayMP);
-         output_low(posM1);      output_low(posM2);
-      }
-      else if(BoolM1)                                 // Solo Motor 1 se mueve
-      {
-         output_high(posM1);
-         delay_ms(delayMP);
-         output_low(posM1);
-      }
-      else if(BoolM2)                                 // Solo Motor 2 se mueve
-      {
-         output_high(posM2);
-         delay_ms(delayMP);
-         output_low(posM2);
-      }
+      output_high(Motor1->Steps[Motor1->PosIndex]);
+      delay_ms(delayMP);
+      output_low(Motor1->Steps[Motor1->PosIndex]);
    }
 }
-   
+
+void MotorSteps(int16 Amount, struct stepmotor* Motor1, struct stepmotor* Motor2, int1 turnDirection) // Movimiento de 2 motores a la vez
+{
+   for(int16 i = 0; i < Amount; i++)
+   {
+      // Establecer siguiente paso
+      turnDirection ? (Motor1->PosIndex++, Motor2->PosIndex++) : (Motor1->PosIndex--, Motor2->PosIndex--);
+      
+      // Corregir desborde de paso
+      (Motor1->PosIndex < 0) ? (Motor1->PosIndex = 3) : ((Motor1->PosIndex > 3) ? (Motor1->PosIndex = 0) : 0);
+      (Motor2->PosIndex < 0) ? (Motor2->PosIndex = 3) : ((Motor2->PosIndex > 3) ? (Motor2->PosIndex = 0) : 0);
+
+      output_high(Motor1->Steps[Motor1->PosIndex]);   output_high(Motor2->Steps[Motor2->PosIndex]);
+      delay_ms(delayMP);
+      output_low(Motor1->Steps[Motor1->PosIndex]);    output_low(Motor2->Steps[Motor2->PosIndex]);
+   }
+}
 
 // Hacer que lo que avanza la funcion motor STEP sean mm y no pasos (Realizar conversion adentro de funcion con datos de cuantos mm es un paso)
