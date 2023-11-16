@@ -28,9 +28,15 @@ struct menu
 
 struct stepmotor
 {
-   int16          Steps[4];                  // Pines de cada paso del motor
+   long          Steps[4];                   // Pines de cada paso del motor
    signed int     PosIndex;                  // Posicion actual del motor
 };
+
+#int_rda
+void ComputerConection() // Activar y gestionar conexion con interfaz de computadora
+{
+   // Deteccion de coneccion con computadora
+}
 
 //  Prototipos de funcion  //
 void MenuSelect(struct menu*);
@@ -39,6 +45,9 @@ void MotorSteps(int16 Amount, struct stepmotor*, struct stepmotor*, int1 turnDir
 
 void main()
 {
+   // Activamos Interrupciones
+   enable_interrupts(GLOBAL);       enable_interrupts(int_rda);
+   
    // Defino los menus
    struct menu Principal = {{"Realizar Corte", "Configuraciones"}, 1, 0};
    
@@ -55,6 +64,8 @@ void main()
    {
       // Revisar disponibilidad de cable con memoria eeprom, y con los foto-transistores.
       // Si los 2 estan bien comenzar impresion de menu principal
+
+      // Revision de booleano para control con computadora
       
       MenuSelect(&Principal);
 
