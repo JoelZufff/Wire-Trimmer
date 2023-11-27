@@ -22,12 +22,6 @@
 #define     DelayMP  500
 
 // Estructuras //
-struct step_motor
-{
-   long           Steps[4];                  // Pines de cada paso del motor
-   signed int     PosIndex;                  // Posicion actual del motor
-};
-
 struct wire_print_order
 {
    int16          Amount;                    // Cantidad
@@ -35,14 +29,19 @@ struct wire_print_order
    int16          PeelingLength;             // Longitud de pelado de cable (mm)
 };
 
+struct step_motor
+{
+   long           StepPIN;                   // Pin para realizar un paso en el motor
+   long           DirectionPIN;              // Pin para cambiar direccion del motor
+};
+
 // Interrupcion //
 #int_rda
 void ComputerConection() {} // Activar y gestionar conexion con interfaz de computadora
 
 //  Prototipos de funcion  //
-int1 NumberSelect(char Title[16], int16* Number, int16 MinNumber, int16 MaxNumber);               // Funcion para seleccion de numero
-void MotorSteps(int16 Amount, struct step_motor*, int1 turnDirection);  // Se mueve un motor "Amount" veces
-void MotorSteps(int16 Amount, struct step_motor*, struct step_motor*, int1 turnDirection); // Sobrecarga para mover 2 motores a la vez
+int1 NumberSelect(char Title[16], int16* Number, int16 MinNumber, int16 MaxNumber);                // Funcion para seleccion de numero
+void WirePrint(struct wire_print_order ActualOrder);                                               // Funcion de impresion de cable
 
 // Variables Globales
 int16 LCD_Contrast = 50;
@@ -52,16 +51,15 @@ void main()
    // Activamos Interrupciones
    enable_interrupts(GLOBAL);       enable_interrupts(int_rda);
    
-   // PWM para contraste de LCD
+   // Configuramos Motores a Pasos
+   struct step_motor Motor1 = {PIN_D0, PIN_D1};
+   struct step_motor Motor2 = {PIN_D2, PIN_D3};
+
+   // PWM para contraste de LCD (Prueba)
    setup_timer_2(T2_DIV_BY_16, 124, 1);
    setup_ccp1(CCP_PWM);
    set_pwm1_duty(LCD_Contrast);
 
-   // Declaro e inicializo los motores a pasos
-   struct step_motor WireMotor1 = {{PIN_D0, PIN_D1, PIN_D2, PIN_D3}, 0};
-   struct step_motor WireMotor2 = {{PIN_D4, PIN_D5, PIN_D6, PIN_D7}, 0};
-
-   // Obtenemos longitud del cartucho de cable de la memoria eeprom (cm)
    //float Reel = read_eeprom(1);
    float WireReel = 999.99;
 
@@ -73,7 +71,9 @@ void main()
    while(true)
    {
       // Revisar disponibilidad de cable con memoria eeprom, y con ADC de sensor laser de presencia de cable.
-      // Revision de booleano para control con computadora
+      // Si no hay disponibilidad de cable, comanzar proceso de recarga
+
+      // Si hay cable, checar booleano de control para saber si se mandan instrucciones con interfaz grafica o fisica
 
       Start:
       printf(lcd_putc, "\fPresione DERECHA\npara comenzar ->");
@@ -82,18 +82,33 @@ void main()
       // Creamos orden de impresion con valores minimos
       struct wire_print_order ActualOrder = { 1, 5, 0 };
 
-      // Si number select devuelve true, hay que volver al menu anterior
+      // Si NumberSelect devuelve true, hay que volver al menu anterior
       Amount:
-      if( NumberSelect( (char*) "Cantidad:", &ActualOrder.Amount, 1, 100) )
+      if( NumberSelect( (char*) "Cantidad:", &ActualOrder.Amount, 1, 99) )    // En funcion del carrete disponible y el valor minimo de longitud
          goto Start;
       
       Length:
-      if( NumberSelect( (char*) "Longitud (cm):", &ActualOrder.Length, 5, 100) ) // Valor maximo en funcion de memoria eeprom y cantidad
+      if( NumberSelect( (char*) "Longitud (mm):", &ActualOrder.Length, 30, 9999) ) // Valor maximo en funcion de memoria eeprom y cantidad
          goto Amount;
 
       Peeling:
       if( NumberSelect( (char*) "Pelado (mm):", &ActualOrder.PeelingLength, 0, 10) ) // Valor maximo en funcion de longitud de cada cable
          goto Length;
+
+      printf(lcd_putc, "\f-> IMPRIMIR\n<- VOLVER");
+      while(!input(RightButton))
+         if(input(LeftButton))
+         {
+            while(input(LeftButton));
+            goto Peeling;
+         }
+      while(input(RightButton));
+
+      // Impresion del cable
+      WirePrint(ActualOrder);
+
+      printf(lcd_putc, "\fDisfrute de sus\ncables :)");
+      delay_ms(2000);
    }
 }
 
@@ -156,37 +171,13 @@ int1 NumberSelect(char Title[16], int16 *Number, int16 MinNumber, int16 MaxNumbe
       return false;
 }
 
-void MotorSteps(int16 Amount, struct step_motor* Motor1, int1 turnDirection) // Movimiento de un solo motor
-{   
-   for(int16 i = 0; i < Amount; i++)
-   {
-      // Establecer siguiente paso
-      turnDirection ? Motor1->PosIndex++ : Motor1->PosIndex--;
-      
-      // Corregir desborde de paso
-      (Motor1->PosIndex < 0) ? (Motor1->PosIndex = 3) : ((Motor1->PosIndex > 3) ? (Motor1->PosIndex = 0) : 0);
-      
-      output_high(Motor1->Steps[Motor1->PosIndex]);
-      delay_ms(delayMP);
-      output_low(Motor1->Steps[Motor1->PosIndex]);
-   }
-}
-
-void MotorSteps(int16 Amount, struct step_motor* Motor1, struct step_motor* Motor2, int1 turnDirection) // Movimiento de 2 motores a la vez
+void WirePrint(struct wire_print_order ActualOrder)
 {
-   for(int16 i = 0; i < Amount; i++)
+   for(int16 wire = 1; wire <= ActualOrder.Amount; wire++)     // Impresion de cada cable
    {
-      // Establecer siguiente paso
-      turnDirection ? (Motor1->PosIndex++, Motor2->PosIndex++) : (Motor1->PosIndex--, Motor2->PosIndex--);
-      
-      // Corregir desborde de paso
-      (Motor1->PosIndex < 0) ? (Motor1->PosIndex = 3) : ((Motor1->PosIndex > 3) ? (Motor1->PosIndex = 0) : 0);
-      (Motor2->PosIndex < 0) ? (Motor2->PosIndex = 3) : ((Motor2->PosIndex > 3) ? (Motor2->PosIndex = 0) : 0);
+      printf(lcd_putc,"\fIMPRIMIENDO %4lu\n-", wire);
+      delay_ms(3000);
 
-      output_high(Motor1->Steps[Motor1->PosIndex]);   output_high(Motor2->Steps[Motor2->PosIndex]);
-      delay_ms(delayMP);
-      output_low(Motor1->Steps[Motor1->PosIndex]);    output_low(Motor2->Steps[Motor2->PosIndex]);
+      // Al finalizar impresion de cable modificar memoria eeprom con nuevo valor
    }
 }
-
-// Hacer que lo que avanza la funcion motor STEP sean mm y no pasos (Realizar conversion adentro de funcion con datos de cuantos mm es un paso)
