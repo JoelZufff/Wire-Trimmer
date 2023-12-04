@@ -18,8 +18,9 @@
 #define     Left     1
 #define     Right    0
 
-//   Variables Constantes  //
-#define     DelayMP  500
+// Macros y variables constantes
+#define     WireSensor(ADC) (ADC < 900 ? 1 : 0)       // Macro para ver si hay un cable en sensor
+#define     MinWireLenght     30                      // Valor minimo que puede tomar el cable
 
 // Estructuras //
 struct wire_print_order
@@ -33,6 +34,7 @@ struct step_motor
 {
    long           StepPIN;                   // Pin para realizar un paso en el motor
    long           DirectionPIN;              // Pin para cambiar direccion del motor
+   long           Delay;                     // Delay entre cada paso del motor
 };
 
 // Interrupcion //
@@ -40,88 +42,96 @@ struct step_motor
 void ComputerConection() {} // Activar y gestionar conexion con interfaz de computadora
 
 //  Prototipos de funcion  //
-int1 NumberSelect(char Title[16], int16* Number, int16 MinNumber, int16 MaxNumber);                // Funcion para seleccion de numero
-void WirePrint(struct wire_print_order ActualOrder);                                               // Funcion de impresion de cable
-
-// Variables Globales
-int16 LCD_Contrast = 50;
+int1 Number_Select(char Title[16], int16* Number, int16 MinNumber, int16 MaxNumber);                // Funcion para seleccion de numero
+void Wire_Print(struct wire_print_order ActualOrder);                                               // Funcion de impresion de cable
 
 void main()
 {
    // Activamos Interrupciones
    enable_interrupts(GLOBAL);       enable_interrupts(int_rda);
    
+   // Configuramos puertos ADC para fotoresistencia
+   setup_adc(adc_clock_div_2);
+	set_tris_a(0b00000001);
+	setup_adc_ports(AN0);
+   set_adc_channel(0);     delay_us(10);
+
    // Configuramos Motores a Pasos
-   struct step_motor Motor1 = {PIN_D0, PIN_D1};
-   struct step_motor Motor2 = {PIN_D2, PIN_D3};
-
-   // PWM para contraste de LCD (Prueba)
-   setup_timer_2(T2_DIV_BY_16, 124, 1);
-   setup_ccp1(CCP_PWM);
-   set_pwm1_duty(LCD_Contrast);
-
-   //float Reel = read_eeprom(1);
-   float WireReel = 999.99;
+   struct step_motor Motor1 = {PIN_D0, PIN_D1, 500};
+   struct step_motor Motor2 = {PIN_D2, PIN_D3, 500};
 
    // Mensaje Introductorio
-   lcd_init();       lcd_gotoxy(3,1);
+   lcd_init();    lcd_gotoxy(3,1);
    printf(lcd_putc,"WIRE TRIMMER\n Prog. Avanzada");
    delay_ms(1000);
    
    while(true)
    {
-      // Revisar disponibilidad de cable con memoria eeprom, y con ADC de sensor laser de presencia de cable.
-      // Si no hay disponibilidad de cable, comanzar proceso de recarga
+      /*float Reel = read_eeprom(1);*/  long WireReel = 10000;   // Valor maximo 65,000 mm de carrete (Para no desbordar las variables)
+      
+      // Evaluacion de disponibilidad de cable
+      if(!WireSensor(read_adc()) || (WireReel < MinWireLenght))
+      {
+         printf(lcd_putc,"\f!! NO SE DETECTA\nCABLE DISPONIBLE");
+         delay_ms(2000);
 
-      // Si hay cable, checar booleano de control para saber si se mandan instrucciones con interfaz grafica o fisica
-
+         // Funcion para proceso de recarga de cable
+      }
+      
+      // Creacion de orden
       Start:
-      printf(lcd_putc, "\fPresione DERECHA\npara comenzar ->");
+      printf(lcd_putc,"\fCable: %5ld mm\nNueva Orden  -->", WireReel);
       while(!input(RightButton));   while(input(RightButton));
 
-      // Creamos orden de impresion con valores minimos
-      struct wire_print_order ActualOrder = { 1, 5, 0 };
+      struct wire_print_order ActualOrder = { 0, 0, 0 };
 
-      // Si NumberSelect devuelve true, hay que volver al menu anterior
       Amount:
-      if( NumberSelect( (char*) "Cantidad:", &ActualOrder.Amount, 1, 99) )    // En funcion del carrete disponible y el valor minimo de longitud
+      // Valor maximo en funcion del carrete disponible y el valor minimo de longitud
+      if( Number_Select( (char*) "Cantidad:", &ActualOrder.Amount, 1, WireReel / MinWireLenght) )
          goto Start;
       
       Length:
-      if( NumberSelect( (char*) "Longitud (mm):", &ActualOrder.Length, 30, 9999) ) // Valor maximo en funcion de memoria eeprom y cantidad
+      // Valor maximo en funcion de memoria eeprom y cantidad
+      if( Number_Select( (char*) "Longitud (mm):", &ActualOrder.Length, MinWireLenght , WireReel / ActualOrder.Amount) )
          goto Amount;
-
+      
       Peeling:
-      if( NumberSelect( (char*) "Pelado (mm):", &ActualOrder.PeelingLength, 0, 10) ) // Valor maximo en funcion de longitud de cada cable
+      // Valor maximo en funcion de longitud de cada cable
+      if( Number_Select( (char*) "Pelado (mm):", &ActualOrder.PeelingLength, 0, ActualOrder.Length / 10) )
          goto Length;
 
-      printf(lcd_putc, "\f-> IMPRIMIR\n<- VOLVER");
+      // Confirmacion de orden
+      printf(lcd_putc, "\f %4ld Cable(s)  \n    %5ld mm    ",ActualOrder.Amount, ActualOrder.Length);
       while(!input(RightButton))
-         if(input(LeftButton))
-         {
-            while(input(LeftButton));
-            goto Peeling;
-         }
+      {
+         if(input(LeftButton))   {  while(input(LeftButton));  goto Peeling; }
+      }
       while(input(RightButton));
 
-      // Impresion del cable
-      WirePrint(ActualOrder);
+      // Impresion del orden de cable
+      Wire_Print(ActualOrder);
 
-      printf(lcd_putc, "\fDisfrute de sus\ncables :)");
+      printf(lcd_putc,"\fORDEN FINALIZADA\n Vuelva Pronto !");
       delay_ms(2000);
    }
 }
 
-int1 NumberSelect(char Title[16], int16 *Number, int16 MinNumber, int16 MaxNumber)
+int1 Number_Select(char Title[16], int16 *Number, int16 MinNumber, int16 MaxNumber)
 {
    // Declaramos e inicializamos variables que ocuparemos
-   int1 PrintBool = 1;  int1 PosChar = 1;    signed int MaxExponent = 0;   signed int Exponent = 0;
+   int1 PrintBool = 1;  int1 PositionChar = 1;    signed int MaxExponent = 0;   signed int Exponent = 0;
+   
+   // Correccion de posible error en numero
+   if(*Number < MinNumber)
+      *Number = MinNumber;
+   else if(*Number > MaxNumber)
+      *Number = MaxNumber;
 
    // Sacamos el exponente del numero maximo posible que puede tomar el numero
    for(int16 aux = MaxNumber; aux >= 10; aux/=10, MaxExponent++, Exponent++);
 
    // Impresion de titulo y espacio para numeros
-   printf(lcd_putc, "\f%s\n------    ------", Title);
+   printf(lcd_putc, "\f%s\n-----      -----", Title);
 
    // Ciclo que se ejecuta el tiempo que se modifique el numero
    while((Exponent >= 0) && (Exponent <= MaxExponent))
@@ -131,18 +141,23 @@ int1 NumberSelect(char Title[16], int16 *Number, int16 MinNumber, int16 MaxNumbe
       // Impresion en LCD
       if(PrintBool)
       {
-         lcd_gotoxy(7,2);
-         printf(lcd_putc,"%04lu", *Number);         
+         lcd_gotoxy(6,2);
+         printf(lcd_putc,"%06lu", *Number);         
          PrintBool = 0;
 
-         if(PosChar) { lcd_gotoxy(10-Exponent,2);    lcd_putc('*');    PosChar = 0; }
+         if(PositionChar) 
+         { 
+            lcd_gotoxy(11-Exponent,2);    
+            lcd_putc('*');    
+            PositionChar = 0; 
+         }
       }
       
       // Modificacion de variable
       if(input(RightButton) || input(LeftButton))
       {
          input(RightButton) ? Exponent-- : Exponent++;
-         PrintBool = 1;    PosChar = 1;
+         PrintBool = 1;    PositionChar = 1;
 
          while (input(RightButton) || input(LeftButton));
       }
@@ -152,7 +167,7 @@ int1 NumberSelect(char Title[16], int16 *Number, int16 MinNumber, int16 MaxNumbe
          for(int i = 0; i < Exponent; i++, aux *= 10);
 
          if(input(DownButton))
-            (((signed long) *Number - aux) >= MinNumber) ? (*Number -= aux) : (*Number = MinNumber);
+            (((signed int32) *Number - aux) >= MinNumber) ? (*Number -= aux) : (*Number = MinNumber);
             // Si no se hace negativo, le restamos el numero
          else if(input(UpButton))
             ((*Number + aux) <= MaxNumber) ? (*Number += aux) : (*Number = MaxNumber);
@@ -171,13 +186,27 @@ int1 NumberSelect(char Title[16], int16 *Number, int16 MinNumber, int16 MaxNumbe
       return false;
 }
 
-void WirePrint(struct wire_print_order ActualOrder)
+void Wire_Print(struct wire_print_order ActualOrder)
 {
    for(int16 wire = 1; wire <= ActualOrder.Amount; wire++)     // Impresion de cada cable
    {
-      printf(lcd_putc,"\fIMPRIMIENDO %4lu\n-", wire);
+      printf(lcd_putc,"\fIMPRIMIENDO #%3lu\n-", wire);
       delay_ms(3000);
 
       // Al finalizar impresion de cable modificar memoria eeprom con nuevo valor
    }
 }
+
+// PENDIENTES:
+// Crear y terminar funcion de recarga de cable
+// Terminar funcion Wire_Print
+// Obtener y modificar cantidad de cable disponible de memoria eeprom
+// Si hay cable, checar booleano de control para saber si se mandan instrucciones con interfaz grafica o fisica
+// Terminar funcion de la interrupcion del protocolo RS232
+// Configurar voltaje de referencia
+// Corregir detalles en pelado
+
+// Posible interrupcion de timer para revisar constantemente presencia de cable
+// Posible boton de interrupcion para cancelar una orden que se esta imprimiendo
+// Posible espacio en memoria eeprom para guardar booleano para saber si se concluyo la impresion que comenzo (Para posibles apagones)
+// Si no concluyo comenzar proceso de recarga
