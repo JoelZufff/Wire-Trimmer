@@ -1,0 +1,11 @@
+C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\bin\Debug\Wire-Trimmer.exe.config
+C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\bin\Debug\Wire-Trimmer.exe
+C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\bin\Debug\Wire-Trimmer.pdb
+C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wire-Trimmer.csproj.AssemblyReference.cache
+C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wire_Trimmer.Main.resources
+C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wire_Trimmer.NuevaOrden.resources
+C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wire_Trimmer.Properties.Resources.resources
+C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wire-Trimmer.csproj.GenerateResource.cache
+C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wire-Trimmer.csproj.CoreCompileInputs.cache
+C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wire-Trimmer.exe
+C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wire-Trimmer.pdb
