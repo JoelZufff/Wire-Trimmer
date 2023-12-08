@@ -16,5 +16,17 @@ namespace Wire_Trimmer
         {
             InitializeComponent();
         }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            NuevaOrden nuevaOrden = new NuevaOrden();
+            nuevaOrden.Show();
+        }
+
+        private void ProOr_Click(object sender, EventArgs e)
+        {
+            Proceso proceso = new Proceso();
+            proceso.Show();
+        }
     }
 }

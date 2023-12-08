@@ -9,3 +9,4 @@ C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wi
 C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wire-Trimmer.csproj.CoreCompileInputs.cache
 C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wire-Trimmer.exe
 C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wire-Trimmer.pdb
+C:\Users\danie\OneDrive\Escritorio\Wire-Trimmer\3-Graphic_interface\obj\Debug\Wire_Trimmer.Proceso.resources
