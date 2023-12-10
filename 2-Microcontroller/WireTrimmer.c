@@ -39,7 +39,7 @@ struct wire_print_order
    int16          Amount;                    // Cantidad
 };
 
-struct step_motor
+struct stepper_motor
 {
    long           StepPIN;                   // Pin para realizar un paso en el motor
    long           DirectionPIN;              // Pin para cambiar direccion del motor
@@ -53,7 +53,7 @@ int1     PendingOrderBool = 0;
 
 struct   wire_print_order ComputerOrder = {0,0,0};
 
-// Interrupcion //
+// Interrupciones //
 #int_rda
 void ComputerConection()      // Para recibir datos de interfaz grafica
 {
@@ -71,14 +71,17 @@ void ComputerConection()      // Para recibir datos de interfaz grafica
       char LenghtBuffer[6];
       char AmountBuffer[5];
 
+      // Recibimos caracteres de longitud de pelado de cable
       for(int i = 0; i < 2; i++)
          PellingBuffer[i] = getch();
       PellingBuffer[2] = '\0';
 
+      // Recibimos caracteres de longitud de cable
       for(int i = 0; i < 5; i++)
          LenghtBuffer[i] = getch();
       LenghtBuffer[5] = '\0';
 
+      // Recibimos caracteres de cantidad de cables
       for(int i = 0; i < 4; i++)
          AmountBuffer[i] = getch();
       AmountBuffer[5] = '\0';
@@ -110,8 +113,9 @@ void main()
    set_adc_channel(0);     delay_us(10);
 
    // Configuramos Motores a Pasos
-   struct step_motor Motor1 = {PIN_D0, PIN_D1};
-   struct step_motor Motor2 = {PIN_D2, PIN_D3};
+   struct stepper_motor CableMovementMotor      = {PIN_D0, PIN_D1};
+   struct stepper_motor CuttingMechanismMotor   = {PIN_D2, PIN_D3};
+   struct stepper_motor ReelMotor               = {PIN_C1, PIN_C2};
 
    // Mensaje Introductorio
    lcd_init();    lcd_gotoxy(3,1);
@@ -132,9 +136,9 @@ void main()
       }
       
       // Creacion de orden
-      Start:
+      Main:
 
-      if(ConectionStatus)
+      if(ConectionStatus)        // Se utiliza interfaz grafica para realizar ordenes
       {
          // Animacion mientras recibe datos
          printf(lcd_putc, "\f   Recibiendo   ");
@@ -144,16 +148,17 @@ void main()
             lcd_gotoxy(i,2);     lcd_putc('-');       delay_ms(100);
          }
 
+         // Imprimimos orden recibida
          Wire_Print(ComputerOrder);
-         PendingOrderBool = 0;
-         putc('*');     // Caracter de finalizacion de impresion de orden
+         // Ya no hay orden pendiente y avisamos a interfaz que se finalizo a impresion
+         PendingOrderBool = 0;      putc('*');
       }
-      else // Si se utiliza la interfaz fisica para realizar ordenes
+      else                       // Se utiliza la interfaz fisica para realizar ordenes
       {
          printf(lcd_putc,"\fCable: %5ld mm\nNueva Orden  -->", WireReel);
          while(!input(RightButton))
             if(ConectionStatus)
-               goto Start;
+               goto Main;
          while(input(RightButton));
 
          // Creamos orden de impresion
@@ -165,16 +170,16 @@ void main()
             goto Start;
          
          Length:
-         // Valor maximo en funcion de memoria eeprom y cantidad
+         // Valor maximo en funcion de: Carrete disponible - 2 veces longitud del pelado
          if( Number_Select( (char*) "Longitud (mm):", &PhysicalOrder.Length, MinWireLenght , WireReel - (PhysicalOrder.PeelingLength * 2)) )
             goto Peeling;
          
          Amount:
-         // Valor maximo en funcion del carrete disponible y el valor minimo de longitud
+         // Valor maximo en funcion del carrete disponible y la longitud solicitada
          if( Number_Select( (char*) "Cantidad:", &PhysicalOrder.Amount, 1, WireReel / (PhysicalOrder.Length + (PhysicalOrder.PeelingLength * 2))) )
             goto Length;
 
-         // Confirmacion de orden
+         // Mensaje de confirmacion de orden
          printf(lcd_putc, "\f %4ld Cable(s)  \n    %5ld mm    ",PhysicalOrder.Amount, PhysicalOrder.Length);
          while(!input(RightButton))
             if(input(LeftButton))   {  while(input(LeftButton));  goto Amount; }
@@ -282,5 +287,6 @@ void Wire_Print(struct wire_print_order ActualOrder)
 // Configurar voltaje de referencia de sensor infrarojo
 // Crear led RGB para indicar el estatus de la cantidad de cable
 // Corregir posible error cuando haya poco carrete en pelado
+// Crear interrupcion de timer para revisar constantemente el sensor de cable y conexion con computadora
 
 // Posible espacio en memoria eeprom para guardar booleano para saber si se concluyo la impresion que comenzo (Para posibles apagones)
