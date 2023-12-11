@@ -90,3 +90,5 @@ namespace Wire_Trimmer
         }
     }
 }
+// que solo agrege el pedido si hay datos 
+// 
