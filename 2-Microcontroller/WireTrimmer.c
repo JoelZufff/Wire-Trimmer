@@ -167,7 +167,7 @@ void main()
          Peeling:
          // Valor maximo en funcion de longitud de cada cable
          if( Number_Select( (char*) "Pelado (mm):", &PhysicalOrder.PeelingLength, 0, 20) )
-            goto Start;
+            goto Main;
          
          Length:
          // Valor maximo en funcion de: Carrete disponible - 2 veces longitud del pelado
