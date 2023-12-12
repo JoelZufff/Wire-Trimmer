@@ -113,8 +113,8 @@ void main()
    set_adc_channel(0);     delay_us(10);
 
    // Configuramos Motores a Pasos
-   struct stepper_motor CableMovementMotor      = {PIN_D0, PIN_D1};
-   struct stepper_motor CuttingMechanismMotor   = {PIN_D2, PIN_D3};
+   struct stepper_motor WireMovementMotor       = {PIN_D0, PIN_D1};
+   struct stepper_motor WireCuttingMotor        = {PIN_D2, PIN_D3};
    struct stepper_motor ReelMotor               = {PIN_C1, PIN_C2};
 
    // Mensaje Introductorio
@@ -151,7 +151,12 @@ void main()
          // Imprimimos orden recibida
          Wire_Print(ComputerOrder);
          // Ya no hay orden pendiente y avisamos a interfaz que se finalizo a impresion
-         PendingOrderBool = 0;      putc('*');
+         PendingOrderBool = 0;      
+         putc('*');
+
+         // Desconectamos computadora para confirmar conexion
+         ConectionStatus = 0;
+         delay_ms(100);
       }
       else                       // Se utiliza la interfaz fisica para realizar ordenes
       {
@@ -197,45 +202,47 @@ void main()
 int1 Number_Select(char Title[16], int16 *Number, int16 MinNumber, int16 MaxNumber)
 {  
    // Declaramos e inicializamos variables que ocuparemos
-   int1 PrintBool = 1;  int1 PositionChar = 1;    signed int MaxExponent = 0;   signed int Exponent = 0;
+   int1 PrintBool = 1;     int1 PositionChar = 0;    signed int MaxExponent = 0;   signed int Exponent = 0;
    
    // Correccion de posible error en numero
-   if(*Number < MinNumber)
-      *Number = MinNumber;
-   else if(*Number > MaxNumber)
-      *Number = MaxNumber;
+   (*Number < MinNumber) ? (*Number = MinNumber) : (*Number > MaxNumber ? (*Number = MaxNumber) : 0);
 
    // Sacamos el exponente del numero maximo posible que puede tomar el numero
-   for(int16 aux = MaxNumber; aux >= 10; aux/=10, MaxExponent++, Exponent++);
+   for(int16 aux = MaxNumber; aux >= 10; aux /= 10, MaxExponent++, Exponent++);
 
    // Impresion de titulo y espacio para numeros
    printf(lcd_putc, "\f%s\n-----      -----", Title);
+
+   long timer = 0;
 
    // Ciclo que se ejecuta el tiempo que se modifique el numero
    while((Exponent >= 0) && (Exponent <= MaxExponent))
    {
       long aux = 1;
 
+      // Timer para animacion de seleccion
+      delay_ms(1);
+      (++timer == 1) ? (PrintBool = 1) : (timer == 500 ? (PositionChar = 1) : (timer == 1000) ? (timer = 0) : 0);
+      
       // Impresion en LCD
       if(PrintBool)
       {
          lcd_gotoxy(6,2);
-         printf(lcd_putc,"%06lu", *Number);         
-         PrintBool = 0;
-
-         if(PositionChar) 
-         { 
-            lcd_gotoxy(11-Exponent,2);    
-            lcd_putc('*');    
-            PositionChar = 0; 
-         }
+         printf(lcd_putc,"%06lu", *Number);     
+         PrintBool = 0;    
+      }
+      else if(PositionChar)
+      { 
+         lcd_gotoxy(11-Exponent,2);    
+         lcd_putc('_');    
+         PositionChar = 0; 
       }
       
       // Modificacion de variable
       if(input(RightButton) || input(LeftButton))
       {
          input(RightButton) ? Exponent-- : Exponent++;
-         PrintBool = 1;    PositionChar = 1;
+         timer = 0;
 
          while (input(RightButton) || input(LeftButton));
       }
@@ -251,7 +258,7 @@ int1 Number_Select(char Title[16], int16 *Number, int16 MinNumber, int16 MaxNumb
             ((*Number + aux) <= MaxNumber) ? (*Number += aux) : (*Number = MaxNumber);
             // Si no se hace mayor que el numero maximo, se lo sumamos
 
-         PrintBool = 1;
+         timer = 0;
 
          while (input(DownButton) || input(UpButton));
       }
@@ -271,6 +278,8 @@ void Wire_Print(struct wire_print_order ActualOrder)
       printf(lcd_putc,"\fCable %4lu /%4lu", wire, ActualOrder.Amount);
       delay_ms(3000);
 
+      
+      
       // Revisar sensor de cable constantemente
 
 
