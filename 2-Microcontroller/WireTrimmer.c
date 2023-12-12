@@ -46,10 +46,9 @@ struct stepper_motor
 };
 
 // Variables globales
-long     WireReel = 0;
-
-int1     ConectionStatus = 0;
-int1     PendingOrderBool = 0;
+long     WireReel = 0;                       // Carrete diponible (mm)
+int1     ConectionStatus = 0;                // Booleano de conexion con interfaz grafica
+int1     PendingOrderBool = 0;               // Booleano de orden pendiente
 
 struct   wire_print_order ComputerOrder = {0,0,0};
 
@@ -59,10 +58,15 @@ void ComputerConection()      // Para recibir datos de interfaz grafica
 {
    char data = getch();
 
-   if(data == '+')    // Se recibe el caracter de conexion
+   if(data == '+')    // Se recibe el caracter de conexion y hay cable disponible
    {
-      printf("+%05ld", WireReel);     // Enviamos informacion a interfaz grafica
-      ConectionStatus = 1;
+      if(WireReel < MinWireLenght)        // Si no hay cable disponible se lo informamos a la interfaz
+         putc('-');
+      else
+      {
+         printf("+%05ld", WireReel);     // Enviamos informacion a interfaz grafica
+         ConectionStatus = 1;
+      }
    }
    else if(!PendingOrderBool && data == '*')    // Si no hay ordenes pendientes por imprimir y recibimos el caracter de impresion
    {
@@ -100,6 +104,7 @@ void ComputerConection()      // Para recibir datos de interfaz grafica
 //  Prototipos de funcion  //
 int1 Number_Select(char Title[16], int16* Number, int16 MinNumber, int16 MaxNumber);                // Funcion para seleccion de numero
 void Wire_Print(struct wire_print_order ActualOrder);                                               // Funcion de impresion de cable
+void Wire_Recharge();                                                                               // Funcion para recarga de cable
 
 void main()
 {  
@@ -124,20 +129,33 @@ void main()
    
    while(true)
    {
-      /*WireReel = read_eeprom(1);*/  WireReel = 10000;   // Valor maximo 65,000 mm de carrete (Para no desbordar las variables)
+      /*WireReel = read_eeprom(1);*/  WireReel = 5;   // Valor maximo 65,000 mm de carrete (Para no desbordar las variables)
       
-      // Evaluacion de disponibilidad de cable
-      if(!WireSensor(read_adc()) || (WireReel < MinWireLenght))
+      // Revisamos si la cantidad de cable registrado es suficiente
+      if(WireReel < MinWireLenght)
       {
-         printf(lcd_putc,"\f!! NO SE DETECTA\nCABLE DISPONIBLE");
-         delay_ms(2000);
+         printf(lcd_putc,"\fSIN CABLE DISP.");
+         
+         // Animacion
+         for (long timer = 0; !input(RightButton); (timer > 1000) ? (timer = 0) : (timer++))
+         {
+            lcd_gotoxy(1, 2);
 
-         // Funcion para proceso de recarga de cable
+            if (timer == 1)
+               printf(lcd_putc, "Cargar Cable ->");
+            else if(timer == 500)
+               printf(lcd_putc, "               ");
+
+            delay_ms(1);
+         }
+         while(input(RightButton));
+
+         // Proceso de recarga de cable
+         Wire_Recharge();
       }
-      
-      // Creacion de orden
-      Main:
 
+      Main:
+      // Creacion de orden
       if(ConectionStatus)        // Se utiliza interfaz grafica para realizar ordenes
       {
          // Animacion mientras recibe datos
@@ -150,20 +168,29 @@ void main()
 
          // Imprimimos orden recibida
          Wire_Print(ComputerOrder);
-         // Ya no hay orden pendiente y avisamos a interfaz que se finalizo a impresion
-         PendingOrderBool = 0;      
+         // Ya no hay orden pendiente y desconectamos conexion con computadora para confirmar conexion
+         PendingOrderBool = ConectionStatus = 0;      
          putc('*');
-
-         // Desconectamos computadora para confirmar conexion
-         ConectionStatus = 0;
          delay_ms(100);
       }
       else                       // Se utiliza la interfaz fisica para realizar ordenes
       {
-         printf(lcd_putc,"\fCable: %5ld mm\nNueva Orden  -->", WireReel);
-         while(!input(RightButton))
+         printf(lcd_putc,"\fCable: %5ld mm", WireReel);
+         // Animacion
+         for (long timer = 0; !input(RightButton); (timer > 1000) ? (timer = 0) : (timer++))
+         {
+            lcd_gotoxy(1, 2);
+
+            if (timer == 1)
+               printf(lcd_putc, "Nueva Orden  ->");
+            else if(timer == 500)
+               printf(lcd_putc, "               ");
+
             if(ConectionStatus)
                goto Main;
+
+            delay_ms(1);
+         }
          while(input(RightButton));
 
          // Creamos orden de impresion
@@ -278,8 +305,6 @@ void Wire_Print(struct wire_print_order ActualOrder)
       printf(lcd_putc,"\fCable %4lu /%4lu", wire, ActualOrder.Amount);
       delay_ms(3000);
 
-      
-      
       // Revisar sensor de cable constantemente
 
 
@@ -287,15 +312,24 @@ void Wire_Print(struct wire_print_order ActualOrder)
    }
 }
 
-// PENDIENTES:
-// Crear version donde en lugar de restringir la cantidad maxima del pedido le de una advertencia diciendo que no hay sufiente cable
+void Wire_Recharge()
+{
+   printf(lcd_putc, "\fColoque el CABLE\nen su posicion");
+   delay_ms(2000);
+   
+   printf(lcd_putc, "\fEnrollar     ->\nDetener      <-");
+   delay_ms(2000);
+}
 
+// PENDIENTES:
 // Crear y terminar funcion de recarga de cable
+// Crear interrupcion de timer para revisar constantemente el sensor de cable
 // Obtener y modificar cantidad de cable disponible de memoria eeprom
 // Terminar funcion Wire_Print
-// Configurar voltaje de referencia de sensor infrarojo
-// Crear led RGB para indicar el estatus de la cantidad de cable
+// Crear arreglo de leds que indiquen estado del carrete
+
 // Corregir posible error cuando haya poco carrete en pelado
-// Crear interrupcion de timer para revisar constantemente el sensor de cable y conexion con computadora
+// Configurar voltaje de referencia de sensor infrarojo
+// Crear version donde en lugar de restringir la cantidad maxima del pedido le de una advertencia diciendo que no hay sufiente cable
 
 // Posible espacio en memoria eeprom para guardar booleano para saber si se concluyo la impresion que comenzo (Para posibles apagones)
