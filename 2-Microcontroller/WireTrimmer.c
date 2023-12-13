@@ -27,6 +27,8 @@
 #define     Left     1
 #define     Right    0
 
+const long LEDS[5] = {PIN_A1, PIN_A2, PIN_A3, PIN_A4, PIN_A5};
+
 // Macros y variables constantes
 #define     WireSensor(ADC) (ADC < 900 ? 1 : 0)       // Macro para ver si hay un cable en fotoresistencia
 #define     MinWireLenght     10                      // Valor minimo que puede tomar el cable
@@ -126,7 +128,7 @@ void main()
    lcd_init();    lcd_gotoxy(3,1);
    printf(lcd_putc,"WIRE TRIMMER\n Prog. Avanzada");
    delay_ms(1000);
-   
+
    while(true)
    {
       /*WireReel = read_eeprom(1);*/  WireReel = 5;   // Valor maximo 65,000 mm de carrete (Para no desbordar las variables)
