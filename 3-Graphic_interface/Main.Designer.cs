@@ -28,7 +28,8 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle3 = new System.Windows.Forms.DataGridViewCellStyle();
+            this.components = new System.ComponentModel.Container();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle7 = new System.Windows.Forms.DataGridViewCellStyle();
             this.label1 = new System.Windows.Forms.Label();
             this.Imprimir = new System.Windows.Forms.Button();
             this.Cantidad = new System.Windows.Forms.TextBox();
@@ -40,6 +41,8 @@
             this.Ordenes = new System.Windows.Forms.DataGridView();
             this.Agregar = new System.Windows.Forms.Button();
             this.Eliminar = new System.Windows.Forms.Button();
+            this.ConectarP = new System.Windows.Forms.Button();
+            this.serialPort1 = new System.IO.Ports.SerialPort(this.components);
             ((System.ComponentModel.ISupportInitialize)(this.Ordenes)).BeginInit();
             this.SuspendLayout();
             // 
@@ -67,8 +70,9 @@
             // 
             // Cantidad
             // 
+            this.Cantidad.Enabled = false;
             this.Cantidad.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Cantidad.Location = new System.Drawing.Point(78, 149);
+            this.Cantidad.Location = new System.Drawing.Point(62, 149);
             this.Cantidad.MaxLength = 4;
             this.Cantidad.Name = "Cantidad";
             this.Cantidad.Size = new System.Drawing.Size(138, 35);
@@ -78,8 +82,9 @@
             // 
             // Longitud
             // 
+            this.Longitud.Enabled = false;
             this.Longitud.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Longitud.Location = new System.Drawing.Point(353, 149);
+            this.Longitud.Location = new System.Drawing.Point(303, 149);
             this.Longitud.MaxLength = 5;
             this.Longitud.Name = "Longitud";
             this.Longitud.Size = new System.Drawing.Size(138, 35);
@@ -89,8 +94,9 @@
             // 
             // Pelado
             // 
+            this.Pelado.Enabled = false;
             this.Pelado.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Pelado.Location = new System.Drawing.Point(620, 149);
+            this.Pelado.Location = new System.Drawing.Point(537, 149);
             this.Pelado.MaxLength = 2;
             this.Pelado.Name = "Pelado";
             this.Pelado.Size = new System.Drawing.Size(138, 35);
@@ -103,7 +109,7 @@
             // 
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.Location = new System.Drawing.Point(38, 106);
+            this.label2.Location = new System.Drawing.Point(26, 106);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(220, 29);
             this.label2.TabIndex = 6;
@@ -113,7 +119,7 @@
             // 
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label3.Location = new System.Drawing.Point(348, 106);
+            this.label3.Location = new System.Drawing.Point(298, 106);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(168, 29);
             this.label3.TabIndex = 7;
@@ -123,7 +129,7 @@
             // 
             this.label4.AutoSize = true;
             this.label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label4.Location = new System.Drawing.Point(615, 106);
+            this.label4.Location = new System.Drawing.Point(532, 106);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(152, 29);
             this.label4.TabIndex = 8;
@@ -133,14 +139,14 @@
             // 
             this.Ordenes.AllowUserToAddRows = false;
             this.Ordenes.AllowUserToDeleteRows = false;
-            dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle3.BackColor = System.Drawing.SystemColors.Control;
-            dataGridViewCellStyle3.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle3.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle3.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.Ordenes.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle3;
+            dataGridViewCellStyle7.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle7.BackColor = System.Drawing.SystemColors.Control;
+            dataGridViewCellStyle7.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle7.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle7.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle7.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle7.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.Ordenes.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle7;
             this.Ordenes.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             this.Ordenes.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.Ordenes.Location = new System.Drawing.Point(43, 215);
@@ -154,8 +160,9 @@
             // 
             // Agregar
             // 
+            this.Agregar.Enabled = false;
             this.Agregar.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Agregar.Location = new System.Drawing.Point(871, 142);
+            this.Agregar.Location = new System.Drawing.Point(728, 142);
             this.Agregar.Name = "Agregar";
             this.Agregar.Size = new System.Drawing.Size(137, 49);
             this.Agregar.TabIndex = 10;
@@ -165,8 +172,9 @@
             // 
             // Eliminar
             // 
+            this.Eliminar.Enabled = false;
             this.Eliminar.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Eliminar.Location = new System.Drawing.Point(871, 87);
+            this.Eliminar.Location = new System.Drawing.Point(907, 142);
             this.Eliminar.Name = "Eliminar";
             this.Eliminar.Size = new System.Drawing.Size(137, 49);
             this.Eliminar.TabIndex = 11;
@@ -174,12 +182,30 @@
             this.Eliminar.UseVisualStyleBackColor = true;
             this.Eliminar.Click += new System.EventHandler(this.Eliminar_Click);
             // 
+            // ConectarP
+            // 
+            this.ConectarP.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.ConectarP.Location = new System.Drawing.Point(813, 86);
+            this.ConectarP.Name = "ConectarP";
+            this.ConectarP.Size = new System.Drawing.Size(137, 49);
+            this.ConectarP.TabIndex = 12;
+            this.ConectarP.Text = "Conectar";
+            this.ConectarP.UseVisualStyleBackColor = true;
+            this.ConectarP.Click += new System.EventHandler(this.ConectarP_Click);
+            // 
+            // serialPort1
+            // 
+            this.serialPort1.PortName = "COM3";
+            this.serialPort1.ReadTimeout = 500;
+            this.serialPort1.WriteTimeout = 500;
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.GradientInactiveCaption;
             this.ClientSize = new System.Drawing.Size(1094, 712);
+            this.Controls.Add(this.ConectarP);
             this.Controls.Add(this.Eliminar);
             this.Controls.Add(this.Agregar);
             this.Controls.Add(this.Ordenes);
@@ -213,6 +239,8 @@
         private System.Windows.Forms.DataGridView Ordenes;
         private System.Windows.Forms.Button Agregar;
         private System.Windows.Forms.Button Eliminar;
+        private System.Windows.Forms.Button ConectarP;
+        private System.IO.Ports.SerialPort serialPort1;
     }
 }
 
