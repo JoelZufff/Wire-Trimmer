@@ -24,14 +24,15 @@
 #define     LeftButton     PIN_D4
 #define     RightButton    PIN_D7
 
-#define     Left     1
-#define     Right    0
+#define     In       1
+#define     Out      0
 
-const long LEDS[5] = {PIN_A1, PIN_A2, PIN_A3, PIN_A4, PIN_A5};
+const long LEDS[5] = {PIN_E0, PIN_A5, PIN_A4, PIN_A2, PIN_A1};
 
 // Macros y variables constantes
 #define     WireSensor(ADC) (ADC < 900 ? 1 : 0)       // Macro para ver si hay un cable en fotoresistencia
-#define     MinWireLenght     10                      // Valor minimo que puede tomar el cable
+#define     MinWireLenght     30                      // Valor minimo de carrete disponible
+#define     MaxWireLenght     10000                   // Valor maximo de carrete disponible
 
 // Estructuras //
 struct wire_print_order
@@ -53,6 +54,11 @@ int1     ConectionStatus = 0;                // Booleano de conexion con interfa
 int1     PendingOrderBool = 0;               // Booleano de orden pendiente
 
 struct   wire_print_order ComputerOrder = {0,0,0};
+
+// Configuramos Motores a Pasos
+struct stepper_motor WireMovementMotor       = {PIN_D1, PIN_D0};
+struct stepper_motor ReelMotor               = {PIN_C1, PIN_C2};
+struct stepper_motor WireCuttingMotor        = {PIN_D2, PIN_D3};
 
 // Interrupciones //
 #int_rda
@@ -90,7 +96,7 @@ void ComputerConection()      // Para recibir datos de interfaz grafica
       // Recibimos caracteres de cantidad de cables
       for(int i = 0; i < 4; i++)
          AmountBuffer[i] = getch();
-      AmountBuffer[5] = '\0';
+      AmountBuffer[4] = '\0';
 
       char *endptr;
       
@@ -106,23 +112,26 @@ void ComputerConection()      // Para recibir datos de interfaz grafica
 //  Prototipos de funcion  //
 int1 Number_Select(char Title[16], int16* Number, int16 MinNumber, int16 MaxNumber);                // Funcion para seleccion de numero
 void Wire_Print(struct wire_print_order ActualOrder);                                               // Funcion de impresion de cable
+void WireReel_ValueReset(long Length, int1 ResetBool);                                                   // Funcion para actualizar valor de carrete
+void Wire_Movement(int32 Steps);                                                                    // Funcion para mover el motor ciertos pasos
 void Wire_Recharge();                                                                               // Funcion para recarga de cable
 
 void main()
 {  
+   // Desactivamos LEDS para evitar errores
+   for(int i = 0; i < 5 ; i++)
+      output_low(LEDS[i]);
+   
    // Activamos Interrupciones
    enable_interrupts(GLOBAL);       enable_interrupts(int_rda);
    
-   // Configuramos puertos ADC para fotoresistencia
+   // Configuramos puertos ADC para sensor laser
    setup_adc(adc_clock_div_2);
    set_tris_a(0b00000001);
-   setup_adc_ports(AN0);
+   setup_adc_ports(AN0, VSS_VREF);     // Sensor con voltaje de referencia
    set_adc_channel(0);     delay_us(10);
 
-   // Configuramos Motores a Pasos
-   struct stepper_motor WireMovementMotor       = {PIN_D0, PIN_D1};
-   struct stepper_motor WireCuttingMotor        = {PIN_D2, PIN_D3};
-   struct stepper_motor ReelMotor               = {PIN_C1, PIN_C2};
+   output_low(PIN_A1);
 
    // Mensaje Introductorio
    lcd_init();    lcd_gotoxy(3,1);
@@ -131,12 +140,12 @@ void main()
 
    while(true)
    {
-      /*WireReel = read_eeprom(1);*/  WireReel = 5;   // Valor maximo 65,000 mm de carrete (Para no desbordar las variables)
+      /*WireReel = read_eeprom(1);*/  WireReel = 5;   // Valor maximo 10,000 mm de carrete
       
-      // Revisamos si la cantidad de cable registrado es suficiente
-      if(WireReel < MinWireLenght)
+      // Si el cable es insuficiente, PROCESO DE RECARGA
+      while(WireReel < MinWireLenght)
       {
-         printf(lcd_putc,"\fSIN CABLE DISP.");
+         printf(lcd_putc,"\fCarrete Escaso");
          
          // Animacion
          for (long timer = 0; !input(RightButton); (timer > 1000) ? (timer = 0) : (timer++))
@@ -144,7 +153,7 @@ void main()
             lcd_gotoxy(1, 2);
 
             if (timer == 1)
-               printf(lcd_putc, "Cargar Cable ->");
+               printf(lcd_putc, "Nuevo Carrete->");
             else if(timer == 500)
                printf(lcd_putc, "               ");
 
@@ -170,6 +179,7 @@ void main()
 
          // Imprimimos orden recibida
          Wire_Print(ComputerOrder);
+         
          // Ya no hay orden pendiente y desconectamos conexion con computadora para confirmar conexion
          PendingOrderBool = ConectionStatus = 0;      
          putc('*');
@@ -179,13 +189,13 @@ void main()
       {
          printf(lcd_putc,"\fCable: %5ld mm", WireReel);
          // Animacion
-         for (long timer = 0; !input(RightButton); (timer > 1000) ? (timer = 0) : (timer++))
+         for (long Timer = 0; !input(RightButton); (Timer > 1000) ? (Timer = 0) : (Timer++))
          {
             lcd_gotoxy(1, 2);
 
-            if (timer == 1)
+            if (Timer == 1)
                printf(lcd_putc, "Nueva Orden  ->");
-            else if(timer == 500)
+            else if(Timer == 500)
                printf(lcd_putc, "               ");
 
             if(ConectionStatus)
@@ -205,7 +215,7 @@ void main()
          
          Length:
          // Valor maximo en funcion de: Carrete disponible - 2 veces longitud del pelado
-         if( Number_Select( (char*) "Longitud (mm):", &PhysicalOrder.Length, MinWireLenght , WireReel - (PhysicalOrder.PeelingLength * 2)) )
+         if( Number_Select( (char*) "Longitud (mm):", &PhysicalOrder.Length, 10 , WireReel - (PhysicalOrder.PeelingLength * 2)) )
             goto Peeling;
          
          Amount:
@@ -303,35 +313,181 @@ int1 Number_Select(char Title[16], int16 *Number, int16 MinNumber, int16 MaxNumb
 void Wire_Print(struct wire_print_order ActualOrder)
 {
    for(int16 wire = 1; wire <= ActualOrder.Amount; wire++)     // Impresion de cada cable
-   {
+   {  
       printf(lcd_putc,"\fCable %4lu /%4lu", wire, ActualOrder.Amount);
-      delay_ms(3000);
 
-      // Revisar sensor de cable constantemente
+      // Conversion de mm de pedido a pasos del motor (Hacer macro para conversion PENDIENTE)
+      Wire_Movement(ActualOrder.PeelingLength);
 
+      // Realizamos corte de pelado (Usar macro para conversion PENDIENTE)
+      Wire_Movement(ActualOrder.Length);
 
-      // Al finalizar impresion de cable modificar memoria eeprom con nuevo valor
+      // Realizamos corte de pelado (Usar macro para conversion PENDIENTE
+      Wire_Movement(ActualOrder.PeelingLength);
+
+      // Realizamos corte final de cable PENDIENTE
+      // Al finalizar impresion de cable modificar memoria eeprom con nuevo valor PENDIENTE
    }
 }
 
 void Wire_Recharge()
-{
+{  
+   WireReel = 0;     // Reiniciamos la cantidad del carrete
+
    printf(lcd_putc, "\fColoque el CABLE\nen su posicion");
-   delay_ms(2000);
+   while(!WireSensor(read_adc()));     // Mientras no se detecte el cable en su posicion
+   delay_us(10);
    
+   int32    Steps = 0;              // Contador de pasos del motor
+   
+   RechargingProcess:
+
    printf(lcd_putc, "\fEnrollar     ->\nDetener      <-");
-   delay_ms(2000);
+
+   // Establecemos direccion de motores
+   output_bit(ReelMotor, In);   
+   output_bit(WireMovementMotor, In);
+
+   int1     MovementBool = 0;       // Booleano para control de movimiento
+   long     Timer = 0;              // Timer para movimiento de motores
+
+   while (WireSensor(read_adc()))   // Mientras el sensor detecte cable
+   {
+      if(input(RightButton))
+         MovementBool = 1;
+      else if(input(LeftButton))
+         MovementBool = 0;
+      
+      if(MovementBool)
+      {
+         if(Timer == 50)          // Si pasaron 50 ms 
+         {
+            output_high(WireMovementMotor.StepPIN);
+            output_low(WireMovementMotor.StepPIN);
+            Steps++;
+         }
+         else if(Timer == 100)    // Si pasaron 100 ms
+         {
+            output_high(ReelMotor.StepPIN);
+            output_low(ReelMotor.StepPIN);
+         }
+         else if(Timer > 100)
+            Timer = 0;
+         
+         delay_ms(1);
+         Timer++;
+      }
+      else
+         Timer = 0;
+   }
+
+   for(Timer = 0; WireSensor(read_adc()); (Timer > 100) ? (Timer = 0) : (Timer++))
+   {
+      if(Timer == 50)          // Si pasaron 50 ms 
+      {
+         output_high(WireMovementMotor.StepPIN);
+         output_low(WireMovementMotor.StepPIN);
+         Steps--;
+      }
+      else if(Timer == 100)    // Si pasaron 100 ms
+      {
+         output_high(ReelMotor.StepPIN);
+         output_low(ReelMotor.StepPIN);
+      }
+
+      delay_ms(1);
+   }
+   
+   printf(lcd_putc, "\fCable Enrollado?\nContinuar     ->");
+   
+   while(!input(RightButton))
+   {
+      if (WireSensor(read_adc()))
+         goto RechargingProcess;
+   }
+      
+   // Volvemos a mover el cable hasta detectarlo
+
+   // Establecemos direccion de motores
+   output_bit(ReelMotor, Out);
+   output_bit(WireMovementMotor, Out);
+
+   for(Timer = 0; !WireSensor(read_adc()); (Timer > 100) ? (Timer = 0) : (Timer++))
+   {
+      if(Timer == 50)          // Si pasaron 50 ms 
+      {
+         output_high(WireMovementMotor.StepPIN);
+         output_low(WireMovementMotor.StepPIN);
+         Steps--;
+      }
+      else if(Timer == 100)    // Si pasaron 100 ms
+      {
+         output_high(ReelMotor.StepPIN);
+         output_low(ReelMotor.StepPIN);
+      }
+
+      delay_ms(1);
+   }
+   
+   // Usar macro para convertir los pasos a mm PENDIENTE
+
+   WireReel_ValueReset(Steps, TRUE);
+}
+
+void WireReel_ValueReset(long Length, int1 RestetBool)
+{
+   if(RestetBool)
+      WireReel = Length;
+   else
+      WireReel += Length;
+   
+   // Prendemos los leds correspondientes al tamaño del carrete
+   for(int i = 0; i < 5; i++)
+   {
+      if(i < (WireReel / MaxWireLenght * 5))
+         output_high(LEDS[i]);
+      else
+         output_low(LEDS[i]);
+   }
+
+   // Acutalizar memoria eeprom
+}
+
+void Wire_Movement(int32 Steps)
+{
+   // Establecemos direccion a los motores
+   output_bit(ReelMotor.DirectionPIN, Out);
+   output_bit(WireMovementMotor.DirectionPIN, Out);
+   
+   int32 ActualStep;
+   
+   for(long Timer = 0, ActualStep = 0; ActualStep < Steps ; (Timer > 100) ? (Timer = 0) : (Timer++))
+   {
+      if(Timer == 50)          // Si pasaron 50 ms 
+      {
+         output_high(WireMovementMotor.StepPIN);
+         output_low(WireMovementMotor.StepPIN);
+         ActualStep++;
+      }
+      else if(Timer == 100)    // Si pasaron 100 ms
+      {
+         output_high(ReelMotor.StepPIN);
+         output_low(ReelMotor.StepPIN);
+      }
+
+      delay_ms(1);
+   }
+
+   // Revisar sensor de cable constantemente PENDIENTE
 }
 
 // PENDIENTES:
-// Crear y terminar funcion de recarga de cable
-// Crear interrupcion de timer para revisar constantemente el sensor de cable
 // Obtener y modificar cantidad de cable disponible de memoria eeprom
 // Terminar funcion Wire_Print
-// Crear arreglo de leds que indiquen estado del carrete
+// Crear interrupcion de timer para revisar constantemente el sensor de cable
 
 // Corregir posible error cuando haya poco carrete en pelado
-// Configurar voltaje de referencia de sensor infrarojo
 // Crear version donde en lugar de restringir la cantidad maxima del pedido le de una advertencia diciendo que no hay sufiente cable
 
 // Posible espacio en memoria eeprom para guardar booleano para saber si se concluyo la impresion que comenzo (Para posibles apagones)
+
