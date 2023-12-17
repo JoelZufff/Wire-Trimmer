@@ -8,16 +8,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.IO.Ports;
 
 namespace Wire_Trimmer
 {
     public partial class Main : Form
     {
+        // DataTable para tabla dinamica
         DataTable OrdenDataTable = new DataTable();
-        //string[] datosP; 
-        public int carrete;
-        bool con = false;
+
+        // Variables Globales
+        public int      Reel;
+        public bool     ConectionStatus = false;
+        string          Data = string.Empty;
 
         public Main()
         {
@@ -37,20 +39,19 @@ namespace Wire_Trimmer
         {
             //mandar el pedido
             int pedido = 0;
-            //carrete = 100;
+            //Reel = 100;
             for(int i = 0;i< OrdenDataTable.Rows.Count;i++)
             {
-                int cant=0,lon=0,pel=0;
+                int cant = 0,lon = 0,pel = 0;
                 cant = int.Parse(OrdenDataTable.Rows[i]["Cantidad"].ToString());
                 lon = int.Parse(OrdenDataTable.Rows[i]["Longitud"].ToString());
                 pel = int.Parse(OrdenDataTable.Rows[i]["Pelado"].ToString());
                 pedido = pedido + (((2 * pel) + lon) * cant);
             }
-            if(pedido>carrete)
+            if(pedido>Reel)
                 MessageBox.Show("Orden incorrecta, cable insuficiente");
             else
-            {
-                
+            {    
                 MessageBox.Show("Orden correcta");
             }
                 
@@ -61,7 +62,7 @@ namespace Wire_Trimmer
         private void Cantidad_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (e.KeyChar == 13)
-                Agregar.PerformClick();
+                AddButton.PerformClick();
             else if ((e.KeyChar >= 32 && e.KeyChar <= 47) || (e.KeyChar >= 58))
                 e.Handled = true;
         }
@@ -69,7 +70,7 @@ namespace Wire_Trimmer
         private void Longitud_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (e.KeyChar == 13)
-                Agregar.PerformClick();
+                AddButton.PerformClick();
             else if ((e.KeyChar >= 32 && e.KeyChar <= 47) || (e.KeyChar >= 58))
                 e.Handled = true;
         }
@@ -77,23 +78,17 @@ namespace Wire_Trimmer
         private void Pelado_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (e.KeyChar == 13)
-                Agregar.PerformClick();
+                AddButton.PerformClick();
             else if ((e.KeyChar >= 32 && e.KeyChar <= 47) || (e.KeyChar >= 58))
                 e.Handled = true;
         }
 
         private void Agregar_Click(object sender, EventArgs e)
         {
-            if (Cantidad.TextLength == 0 || Longitud.TextLength == 0 || Pelado.TextLength == 0)
-                MessageBox.Show("Orden incorrecta");
-            else
-            {
-                OrdenDataTable.Rows.Add(Cantidad.Text, Longitud.Text, Pelado.Text);
-                Cantidad.Text = string.Empty;
-                Longitud.Text = string.Empty;
-                Pelado.Text = "5";
-                //Eliminar.Enabled = true;
-            }
+            OrdenDataTable.Rows.Add(Amount.Text, Length.Text, PeelingLength.Text);
+            Amount.Text = string.Empty;
+            Length.Text = string.Empty;
+            PeelingLength.Text = "5";
         }
 
         private void Eliminar_Click(object sender, EventArgs e)
@@ -112,47 +107,37 @@ namespace Wire_Trimmer
                 if (Row[0].ToString() == Order) { Row.Delete(); break; }
         }
 
-        private void ConectarP_Click(object sender, EventArgs e)
+
+        private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
-            string[] ports = SerialPort.GetPortNames();
-            foreach (string port in ports) 
-            {
-                serialPort1.PortName = port;
-            }
+            if(SerialPort.IsOpen)
+                Data = SerialPort.ReadExisting();
+        }
+
+        private void TimerSerialPort_Tick(object sender, EventArgs e)
+        {
+            
+        }
+
+        private void PortsComboBox_MouseClick(object sender, MouseEventArgs e)
+        {
+            string[] Ports = SerialPort.GetPortNames();
+
+            PortsComboBox.Items.Clear();
+            PortsComboBox.Items.AddRange(Ports);
+            PortsComboBox.SelectedItem = 0;
+        }
+
+        private void ConectionButton_Click(object sender, EventArgs e)
+        {
             try
             {
-                serialPort1.Open();
-                serialPort1.Write("+,00100");
-                string[] datosP = serialPort1.ReadExisting().Split(',');
-                foreach (string dato in datosP)
-                {
-                    if (dato.Equals("+"))
-                    {
-                        Cantidad.Enabled = true;
-                        Longitud.Enabled = true;
-                        Pelado.Enabled = true;
-                        Agregar.Enabled = true;
-                        ConectarP.Enabled = false;
-                        Eliminar.Enabled = true;
-                        con=true;
-                    }
-                    else if (con == true)
-                    {
-                        carrete = int.Parse(dato); 
-                        if (carrete == 100)
-                            MessageBox.Show("carrete enviado exitosamente");
-                        //Longitud.Text = carrete.ToString();
-                    }
-                        //carrete = int.Parse(serialPort1.ReadLine().Substring(1, 5));
-                    else if (con==false)
-                        MessageBox.Show("No se puede conectar"); 
-                }
+                SerialPort.PortName = PortsComboBox.Text;
+                SerialPort.Open();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                if(con==false)
-                    MessageBox.Show("No se puede conectar");
-                //throw;
+                MessageBox.Show(ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
@@ -163,3 +148,44 @@ namespace Wire_Trimmer
 // no poder enviar otro pedido hasta que se acabe el que ya se envio con el cable disponible 
 // poner el estatus del pedido 
 // 
+
+
+
+/*foreach (string Port in Ports) 
+    SerialPort.PortName = Port;
+
+try
+{
+    SerialPort.Open();
+    SerialPort.Write("+,00100");
+    string[] datosP = SerialPort.ReadExisting().Split(',');
+    foreach (string dato in datosP)
+    {
+        if (dato.Equals("+"))
+        {
+            Cantidad.Enabled = true;
+            Longitud.Enabled = true;
+            Pelado.Enabled = true;
+            Agregar.Enabled = true;
+            ConectionButton.Enabled = false;
+            Eliminar.Enabled = true;
+            ConectionStatus = true;
+        }
+        else if (ConectionStatus == true)
+        {
+            Reel = int.Parse(dato); 
+            if (Reel == 100)
+                MessageBox.Show("Carrete enviado exitosamente");
+            //Longitud.Text = Reel.ToString();
+        }
+            //Reel = int.Parse(serialPort1.ReadLine().Substring(1, 5));
+        else if ( ConectionStatus == false )
+            MessageBox.Show("No se puede conectar"); 
+    }
+}
+catch (Exception)
+{
+    if( ConectionStatus == false )
+        MessageBox.Show("No se puede conectar");
+    //throw;
+            }*/
