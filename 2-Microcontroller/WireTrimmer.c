@@ -49,9 +49,9 @@ struct stepper_motor
 };
 
 // Variables globales
-long     WireReel = 0;                       // Carrete diponible (mm)
-int1     ConectionStatus = 0;                // Booleano de conexion con interfaz grafica
-int1     PendingOrderBool = 0;               // Booleano de orden pendiente
+long     WireReel          = 0;              // Carrete diponible (mm)
+int1     ConectionStatus   = FALSE;          // Booleano de conexion con interfaz grafica
+int1     PendingOrderBool  = FALSE;          // Booleano de orden pendiente
 
 struct   wire_print_order ComputerOrder = {0,0,0};
 
@@ -66,46 +66,51 @@ void ComputerConection()      // Para recibir datos de interfaz grafica
 {
    char data = getch();
 
-   if(data == '+')    // Se recibe el caracter de conexion y hay cable disponible
+   switch (data)
    {
-      if(WireReel < MinWireLength)        // Si no hay cable disponible se lo informamos a la interfaz
-         putc('-');
-      else
+      case '+':      // Caracter de conexion
       {
-         printf("+%05ld", WireReel);     // Enviamos informacion a interfaz grafica
-         ConectionStatus = 1;
+         printf("+%05ld\n", WireReel);     // Enviamos informacion a interfaz grafica
+         ConectionStatus = TRUE;
       }
-   }
-   else if(!PendingOrderBool && data == '*')    // Si no hay ordenes pendientes por imprimir y recibimos el caracter de impresion
-   {
-      // *(2 digitos - longitud de pelado)(5 digitos - longitud del cable)(4 digitos - cantidad de cables)
-      char PellingBuffer[3];
-      char LenghtBuffer[6];
-      char AmountBuffer[5];
+      break;
+      case '-':      // Caracter de desconexion
+      {
+         ConectionStatus = FALSE;
+      }
+      break;
+      case '*':      // Caracter de envio de orden
+      {
+         // *(2 digitos - longitud de pelado)(5 digitos - longitud del cable)(4 digitos - cantidad de cables)
+         char PellingBuffer[3];
+         char LenghtBuffer[6];
+         char AmountBuffer[5];
 
-      // Recibimos caracteres de longitud de pelado de cable
-      for(int i = 0; i < 2; i++)
-         PellingBuffer[i] = getch();
-      PellingBuffer[2] = '\0';
+         // Recibimos caracteres de longitud de pelado de cable
+         for(int i = 0; i < 2; i++)
+            PellingBuffer[i] = getch();
+         PellingBuffer[2] = '\0';
 
-      // Recibimos caracteres de longitud de cable
-      for(int i = 0; i < 5; i++)
-         LenghtBuffer[i] = getch();
-      LenghtBuffer[5] = '\0';
+         // Recibimos caracteres de longitud de cable
+         for(int i = 0; i < 5; i++)
+            LenghtBuffer[i] = getch();
+         LenghtBuffer[5] = '\0';
 
-      // Recibimos caracteres de cantidad de cables
-      for(int i = 0; i < 4; i++)
-         AmountBuffer[i] = getch();
-      AmountBuffer[4] = '\0';
+         // Recibimos caracteres de cantidad de cables
+         for(int i = 0; i < 4; i++)
+            AmountBuffer[i] = getch();
+         AmountBuffer[4] = '\0';
 
-      char *endptr;
-      
-      // Guardamos la orden para que se realize la impresion
-      ComputerOrder.PeelingLength = strtoul(PellingBuffer, &endptr, 10);
-      ComputerOrder.Length = strtoul(LenghtBuffer, &endptr, 10);
-      ComputerOrder.Amount = strtoul(AmountBuffer, &endptr, 10);
+         char *endptr;
+         
+         // Guardamos la orden para que se realize la impresion
+         ComputerOrder.PeelingLength = strtoul(PellingBuffer, &endptr, 10);
+         ComputerOrder.Length = strtoul(LenghtBuffer, &endptr, 10);
+         ComputerOrder.Amount = strtoul(AmountBuffer, &endptr, 10);
 
-      PendingOrderBool = 1;
+         PendingOrderBool = 1;
+      }
+      break;
    }
 }
 
@@ -124,8 +129,8 @@ long WireReel_eeprom();
 void main()
 {  
    // Configuramos carrete de memoria eeprom
-   WireReel = WireReel_eeprom();
-   //WireReel = 500;   // Valor maximo 10,000 mm de carrete
+   //WireReel = WireReel_eeprom();
+   WireReel = 5;   // Valor maximo 10,000 mm de carrete
 
    // Desactivamos LEDS para evitar errores
    for(int i = 0; i < 5 ; i++)
@@ -151,7 +156,7 @@ void main()
       while(WireReel < MinWireLength || WireReel > MaxWireLength)
       {
          printf(lcd_putc,"\fCarrete Escaso");
-         
+
          // Animacion
          for (long timer = 0; !input(RightButton); (timer > 1000) ? (timer = 0) : (timer++))
          {
@@ -182,7 +187,10 @@ void main()
          for(int i = 1; !PendingOrderBool; (i > 16) ? (i = 1) : i++ )
          {
             lcd_gotoxy(1,2);     printf(lcd_putc, "                ");
-            lcd_gotoxy(i,2);     lcd_putc('-');       delay_ms(100);
+            lcd_gotoxy(i,2);     lcd_putc(0xFF);       delay_ms(100);
+
+            if(!ConectionStatus) // Si hay una desconexion
+               goto Main;
          }
 
          // Imprimimos orden recibida
@@ -328,7 +336,7 @@ void Wire_Print(struct wire_print_order ActualOrder)
       // Conversion de mm de pedido a pasos del motor (Hacer macro para conversion PENDIENTE)
       
       Wire_Movement(ActualOrder.PeelingLength);
-      printf(lcd_putc, "---");
+      printf(lcd_putc, "===");
       // Realizamos corte de pelado (Usar macro para conversion PENDIENTE)
 
       Wire_Movement(ActualOrder.Length);
@@ -337,13 +345,13 @@ void Wire_Print(struct wire_print_order ActualOrder)
       // Realizamos corte de pelado (Usar macro para conversion PENDIENTE
 
       Wire_Movement(ActualOrder.PeelingLength);
-      printf(lcd_putc, "---");
+      printf(lcd_putc, "===");
       // Realizamos corte final de cable PENDIENTE
 
-      WireReel_ChangeValue( (ActualOrder.PeelingLength * 2) + ActualOrder.Length, FALSE);
+      //WireReel_ChangeValue( (ActualOrder.PeelingLength * 2) + ActualOrder.Length, FALSE);
+      delay_ms(500);
    }
    
-   delay_ms(500);
 }
 
 // Error para cable menor al minwirelength o mayor al maxwirelength
@@ -358,7 +366,7 @@ void Wire_Recharge()
    
    RechargingProcess:
 
-   printf(lcd_putc, "\fEnrollar     ->\nDetener      <-");
+   printf(lcd_putc, "\fEnrollar      ->\nDetener      <-");
 
    // Establecemos direccion de motores
    output_bit(ReelMotor, In);   
@@ -370,15 +378,26 @@ void Wire_Recharge()
    // Mientras se detecte cable se mueve los motores a diferente velocidad
    for(Timer = 0; WireSensor(read_adc()); (Timer > 100 || !MovementBool) ? (Timer = 0) : (Timer++))
    {
-      (input(RightButton)) ? (MovementBool = 1) : (input(LeftButton) ? (MovementBool = 0) : 0);
+      if(input(RightButton))
+         MovementBool = TRUE;
+      else if (input(LeftButton))
+      {
+         MovementBool = FALSE;
+         lcd_gotoxy(1,2);
+         printf(lcd_putc, "Enrollar      ->");
+      }
       
-      if(Timer == 50 && MovementBool)          // Si pasaron 50 ms
+      if(Timer == 50)          // Si pasaron 50 ms
       {
          output_high(WireMovementMotor.StepPIN);
          output_low(WireMovementMotor.StepPIN);
-         Steps++;
+         
+         lcd_gotoxy(1,1);
+         printf(lcd_putc, "    %5lu mm    ", ++Steps);   // Meter steps en macro de conversion a mm
+         lcd_gotoxy(1,2);
+         printf(lcd_putc, "Detener       <-");
       }
-      else if(Timer == 100 && MovementBool)    // Si pasaron 100 ms
+      else if(Timer == 100)    // Si pasaron 100 ms
       {
          output_high(ReelMotor.StepPIN);
          output_low(ReelMotor.StepPIN);
@@ -420,7 +439,7 @@ void Wire_Recharge()
    
    // Usar macro para convertir los pasos a mm PENDIENTE
 
-   WireReel_ChangeValue(Steps, TRUE);
+   //WireReel_ChangeValue(Steps, TRUE);
 }
 
 void Wire_Movement(long Length)
@@ -525,9 +544,6 @@ long WireReel_eeprom()
 }
 
 // PENDIENTES:
-// Obtener y modificar cantidad de cable disponible de memoria eeprom
+// Poner cantidad maxima de recarga y Posible cambio de velocidad aprentando up y low
 // Crear interrupcion de timer para revisar constantemente el sensor de cable
-// Calibrar valores
 // Corregir posible error cuando haya poco carrete en pelado
-// Posible espacio en memoria eeprom para guardar booleano para saber si se concluyo la impresion que comenzo (Para posibles apagones)
-

@@ -17,15 +17,19 @@ namespace Wire_Trimmer
         DataTable OrdenDataTable = new DataTable();
 
         // Variables Globales
-        public int      Reel;
-        public bool     ConectionStatus = false;
-        string          Data = string.Empty;
+        public bool ConectionStatus = false;
+        public bool PendingOrder = false;
+
+        public int WireReel = 0;
+
+        string[] Ports;
+        public int PortsIndex;
 
         public Main()
         {
             InitializeComponent();
-            Ordenes.Show();
-            Ordenes.DataSource = OrdenDataTable;
+            OrderDataGridView.Show();
+            OrderDataGridView.DataSource = OrdenDataTable;
         }
 
         private void Main_Load(object sender, EventArgs e)
@@ -33,74 +37,139 @@ namespace Wire_Trimmer
             OrdenDataTable.Columns.Add("Cantidad", typeof(string));
             OrdenDataTable.Columns.Add("Longitud", typeof(string));
             OrdenDataTable.Columns.Add("Pelado", typeof(string));
+            OrdenDataTable.Columns.Add("Estatus", typeof(bool));
+
+            ConectionButton_Click(sender, e);
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void ConectionTimer_Tick(object sender, EventArgs e)
         {
-            //mandar el pedido
-            int pedido = 0;
-            //Reel = 100;
-            for(int i = 0;i< OrdenDataTable.Rows.Count;i++)
+            // Intentar conexion con wire trimmer con puertos disponibles
+
+            if (ConectionStatus && SerialPort.IsOpen)        // Si ya hubo conexion
             {
-                int cant = 0,lon = 0,pel = 0;
+                ConectionTimer.Enabled = false;             // Desactivamos temporizador
+
+                ConectionPanel.Visible = false;
+                WireOrderPanel.Visible = true;
+
+                return;
+            }
+
+            if (SerialPort.IsOpen)                      // Si no hubo conexion y hay un puerto abierto
+                SerialPort.Close();
+
+            if (PortsIndex >= 0)
+            {
+                ConectionProgressBar.Value = Ports.Length - PortsIndex;
+
+                SerialPort.GetType();
+
+                try
+                {
+                    SerialPort.PortName = Ports[PortsIndex--];
+                    SerialPort.Open();
+
+                    // Enviamos caracter de conexion
+                    SerialPort.Write("+");
+                }
+                catch (Exception ex) { }
+            }
+            else                                            // Si ya se probaron todos los puertos
+            {
+                ConectionTimer.Enabled = false;             // Desactivamos temporizador
+                MessageBox.Show("Conexion Fallida", "Wire-Trimmer", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ConectionButton.Enabled = true;
+            }
+        }
+
+        private void ConectionButton_Click(object sender, EventArgs e)
+        {
+            Ports = SerialPort.GetPortNames();
+
+            if (Ports.Length > 0)
+            {
+                PortsIndex = Ports.Length - 1;
+                ConectionProgressBar.Maximum = Ports.Length;
+                ConectionProgressBar.Value = 0;
+                ConectionButton.Enabled = false;
+
+                // Iniciamos temporizador para conexion
+                ConectionTimer.Enabled = true;
+            }
+            else
+                MessageBox.Show("No hay dispositivos conectados", "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
+        {
+            char data = (char)SerialPort.ReadChar();
+
+            // Analizo el caracter recibido
+            switch (data)
+            {
+                case '+':   // Caracter de conexion
+                    {
+                        WireReel = int.Parse(SerialPort.ReadLine());
+
+                        // Configuramos valores de WireOrder
+                        ReelProgresBar.Value = WireReel;
+                        ReelLabel.Text = WireReel.ToString();
+
+                        ConectionStatus = true;
+                    }
+                    break;
+                case '*':   // Caracter de orden finalizada
+                    {
+                        PendingOrder = false;
+                        SerialPort.Write("+");      // Reafirmamos conexion
+                    }
+                    break;
+            }
+        }
+
+        private void PrintButton_Click(object sender, EventArgs e)
+        {
+            int pedido = 0;
+
+            for (int i = 0; i < OrdenDataTable.Rows.Count; i++)
+            {
+                int cant = 0, lon = 0, pel = 0;
                 cant = int.Parse(OrdenDataTable.Rows[i]["Cantidad"].ToString());
                 lon = int.Parse(OrdenDataTable.Rows[i]["Longitud"].ToString());
                 pel = int.Parse(OrdenDataTable.Rows[i]["Pelado"].ToString());
                 pedido = pedido + (((2 * pel) + lon) * cant);
             }
-            if(pedido>Reel)
+            if (pedido > WireReel)
                 MessageBox.Show("Orden incorrecta, cable insuficiente");
             else
-            {    
+            {
                 MessageBox.Show("Orden correcta");
             }
-                
-            //NuevaOrden nuevaOrden = new NuevaOrden();
-            //nuevaOrden.Show();
-        }
-
-        private void Cantidad_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            if (e.KeyChar == 13)
-                AddButton.PerformClick();
-            else if ((e.KeyChar >= 32 && e.KeyChar <= 47) || (e.KeyChar >= 58))
-                e.Handled = true;
-        }
-
-        private void Longitud_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            if (e.KeyChar == 13)
-                AddButton.PerformClick();
-            else if ((e.KeyChar >= 32 && e.KeyChar <= 47) || (e.KeyChar >= 58))
-                e.Handled = true;
-        }
-
-        private void Pelado_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            if (e.KeyChar == 13)
-                AddButton.PerformClick();
-            else if ((e.KeyChar >= 32 && e.KeyChar <= 47) || (e.KeyChar >= 58))
-                e.Handled = true;
         }
 
         private void Agregar_Click(object sender, EventArgs e)
         {
+            // Agregamos orden a table de ordenes
             OrdenDataTable.Rows.Add(Amount.Text, Length.Text, PeelingLength.Text);
-            Amount.Text = string.Empty;
-            Length.Text = string.Empty;
-            PeelingLength.Text = "5";
+
+            // Reiniciamos valores
+            Amount.Value = 0;
+            Length.Value = 0;
+            PeelingLength.Value = 5;
         }
 
         private void Eliminar_Click(object sender, EventArgs e)
         {
             if (OrdenDataTable.Rows.Count == 0)
                 return;
+
             DialogResult Answer = MessageBox.Show("¿Esta seguro que desea eliminar la orden seleccionada?", "Confirmacion", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation);
             if (Answer == DialogResult.No)
                 return;
 
             // Eliminar producto de lista
-            string Order = Ordenes.CurrentRow.Cells[0].Value.ToString();
+            string Order = OrderDataGridView.CurrentRow.Cells[0].Value.ToString();
 
             // Eliminamos producto en DataTable mostrado
             foreach (DataRow Row in OrdenDataTable.Rows)
@@ -108,84 +177,32 @@ namespace Wire_Trimmer
         }
 
 
-        private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
+        // Configuracion de valores maximos
+        private void Length_Click(object sender, EventArgs e)
         {
-            if(SerialPort.IsOpen)
-                Data = SerialPort.ReadExisting();
+            Length.Maximum = WireReel / Amount.Value - 2 * PeelingLength.Value;
         }
 
-        private void TimerSerialPort_Tick(object sender, EventArgs e)
+        private void Amount_Click(object sender, EventArgs e)
         {
-            
+            Amount.Maximum = WireReel / (Length.Value + 2 * PeelingLength.Value);
         }
 
-        private void PortsComboBox_MouseClick(object sender, MouseEventArgs e)
+        private void PeelingLength_Click(object sender, EventArgs e)
         {
-            string[] Ports = SerialPort.GetPortNames();
-
-            PortsComboBox.Items.Clear();
-            PortsComboBox.Items.AddRange(Ports);
-            PortsComboBox.SelectedItem = 0;
+            Length_Click(sender, e);
+            Length.Validate();
         }
 
-        private void ConectionButton_Click(object sender, EventArgs e)
+        private void Main_FormClosed(object sender, FormClosedEventArgs e)
         {
-            try
+            // Mandar caracter de desconexion a PIC
+            if (SerialPort.IsOpen)
             {
-                SerialPort.PortName = PortsComboBox.Text;
-                SerialPort.Open();
+                SerialPort.Write("-");      // Enviamos caracter de desconexion
+                SerialPort.Close();
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+
         }
     }
 }
-// 
-// recibir la cantidad de cable 
-// condicionar el pedido al cable disponible 
-// no poder enviar otro pedido hasta que se acabe el que ya se envio con el cable disponible 
-// poner el estatus del pedido 
-// 
-
-
-
-/*foreach (string Port in Ports) 
-    SerialPort.PortName = Port;
-
-try
-{
-    SerialPort.Open();
-    SerialPort.Write("+,00100");
-    string[] datosP = SerialPort.ReadExisting().Split(',');
-    foreach (string dato in datosP)
-    {
-        if (dato.Equals("+"))
-        {
-            Cantidad.Enabled = true;
-            Longitud.Enabled = true;
-            Pelado.Enabled = true;
-            Agregar.Enabled = true;
-            ConectionButton.Enabled = false;
-            Eliminar.Enabled = true;
-            ConectionStatus = true;
-        }
-        else if (ConectionStatus == true)
-        {
-            Reel = int.Parse(dato); 
-            if (Reel == 100)
-                MessageBox.Show("Carrete enviado exitosamente");
-            //Longitud.Text = Reel.ToString();
-        }
-            //Reel = int.Parse(serialPort1.ReadLine().Substring(1, 5));
-        else if ( ConectionStatus == false )
-            MessageBox.Show("No se puede conectar"); 
-    }
-}
-catch (Exception)
-{
-    if( ConectionStatus == false )
-        MessageBox.Show("No se puede conectar");
-    //throw;
-            }*/
