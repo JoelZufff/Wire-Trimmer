@@ -27,7 +27,7 @@
 #define     In       1
 #define     Out      0
 
-const long IndicatorLEDS[5] = {PIN_E0, PIN_A5, PIN_A4, PIN_A2, PIN_A1};
+const long IndicatorLEDS[5] = {PIN_C0, PIN_C1, PIN_C2, PIN_D0, PIN_D1};
 
 // Macros y variables constantes
 #define     WireSensor(ADC) (ADC < 900 ? 1 : 0)       // Macro para ver si hay un cable en fotoresistencia
@@ -44,8 +44,8 @@ struct wire_print_order
 
 struct stepper_motor
 {
-   long           StepPIN;                   // Pin para realizar un paso en el motor
    long           DirectionPIN;              // Pin para cambiar direccion del motor
+   long           StepPIN;                   // Pin para realizar un paso en el motor
 };
 
 // Variables globales
@@ -56,9 +56,9 @@ int1     PendingOrderBool  = FALSE;          // Booleano de orden pendiente
 struct   wire_print_order ComputerOrder = {0,0,0};
 
 // Configuramos Motores a Pasos
-struct stepper_motor WireMovementMotor       = {PIN_D1, PIN_D0};
-struct stepper_motor ReelMotor               = {PIN_C1, PIN_C2};
-struct stepper_motor WireCuttingMotor        = {PIN_D2, PIN_D3};
+struct stepper_motor ReelMotor               = {PIN_A1, PIN_A2};
+struct stepper_motor WireMovementMotor       = {PIN_A4, PIN_A5};
+struct stepper_motor WireCuttingMotor        = {PIN_E0, PIN_E1};
 
 // Interrupciones //
 #int_rda
@@ -82,24 +82,24 @@ void ComputerConection()      // Para recibir datos de interfaz grafica
       case '*':      // Caracter de envio de orden
       {
          // *(2 digitos - longitud de pelado)(5 digitos - longitud del cable)(4 digitos - cantidad de cables)
-         char PellingBuffer[3];
-         char LenghtBuffer[6];
          char AmountBuffer[5];
+         char LenghtBuffer[6];
+         char PellingBuffer[3];
 
-         // Recibimos caracteres de longitud de pelado de cable
-         for(int i = 0; i < 2; i++)
-            PellingBuffer[i] = getch();
-         PellingBuffer[2] = '\0';
+         // Recibimos caracteres de cantidad de cables
+         for(int i = 0; i < 4; i++)
+            AmountBuffer[i] = getch();
+         AmountBuffer[4] = '\0';
 
          // Recibimos caracteres de longitud de cable
          for(int i = 0; i < 5; i++)
             LenghtBuffer[i] = getch();
          LenghtBuffer[5] = '\0';
 
-         // Recibimos caracteres de cantidad de cables
-         for(int i = 0; i < 4; i++)
-            AmountBuffer[i] = getch();
-         AmountBuffer[4] = '\0';
+         // Recibimos caracteres de longitud de pelado de cable
+         for(int i = 0; i < 2; i++)
+            PellingBuffer[i] = getch();
+         PellingBuffer[2] = '\0';
 
          char *endptr;
          
@@ -130,7 +130,7 @@ void main()
 {  
    // Configuramos carrete de memoria eeprom
    //WireReel = WireReel_eeprom();
-   WireReel = 5;   // Valor maximo 10,000 mm de carrete
+   WireReel = 1050;   // Valor maximo 10,000 mm de carrete
 
    // Desactivamos LEDS para evitar errores
    for(int i = 0; i < 5 ; i++)
@@ -220,6 +220,8 @@ void main()
             delay_ms(1);
          }
          while(input(RightButton));
+
+         Wire_Cut();
 
          // Creamos orden de impresion
          struct wire_print_order PhysicalOrder = {5, 0, 0};
@@ -335,21 +337,20 @@ void Wire_Print(struct wire_print_order ActualOrder)
 
       // Conversion de mm de pedido a pasos del motor (Hacer macro para conversion PENDIENTE)
       
-      Wire_Movement(ActualOrder.PeelingLength);
       printf(lcd_putc, "===");
+      Wire_Movement(ActualOrder.PeelingLength);
       // Realizamos corte de pelado (Usar macro para conversion PENDIENTE)
 
-      Wire_Movement(ActualOrder.Length);
       printf(lcd_putc, "%c%c%c%c%c%c%c%c%c%c", 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
+      Wire_Movement(ActualOrder.Length);
       
       // Realizamos corte de pelado (Usar macro para conversion PENDIENTE
 
-      Wire_Movement(ActualOrder.PeelingLength);
       printf(lcd_putc, "===");
+      Wire_Movement(ActualOrder.PeelingLength);
       // Realizamos corte final de cable PENDIENTE
 
-      //WireReel_ChangeValue( (ActualOrder.PeelingLength * 2) + ActualOrder.Length, FALSE);
-      delay_ms(500);
+      WireReel_ChangeValue( (ActualOrder.PeelingLength * 2) + ActualOrder.Length, FALSE);
    }
    
 }
@@ -369,14 +370,14 @@ void Wire_Recharge()
    printf(lcd_putc, "\fEnrollar      ->\nDetener      <-");
 
    // Establecemos direccion de motores
-   output_bit(ReelMotor, In);   
-   output_bit(WireMovementMotor, In);
+   output_bit(ReelMotor.DirectionPIN, In);   
+   output_bit(WireMovementMotor.DirectionPIN, In);
 
    int1     MovementBool = 0;       // Booleano para control de movimiento
    long     Timer = 0;              // Timer para movimiento de motores
 
    // Mientras se detecte cable se mueve los motores a diferente velocidad
-   for(Timer = 0; WireSensor(read_adc()); (Timer > 100 || !MovementBool) ? (Timer = 0) : (Timer++))
+   for(Timer = 1; WireSensor(read_adc()); (Timer >= 30000 || !MovementBool) ? (Timer = 1) : (Timer++))
    {
       if(input(RightButton))
          MovementBool = TRUE;
@@ -386,21 +387,22 @@ void Wire_Recharge()
          lcd_gotoxy(1,2);
          printf(lcd_putc, "Enrollar      ->");
       }
-      
-      if(Timer == 50)          // Si pasaron 50 ms
+
+      if((Timer % 8) == 0)    // Cada 5 ms
       {
-         output_high(WireMovementMotor.StepPIN);
-         output_low(WireMovementMotor.StepPIN);
-         
+         output_high(ReelMotor.StepPIN);
+         output_low(ReelMotor.StepPIN);
+
          lcd_gotoxy(1,1);
          printf(lcd_putc, "    %5lu mm    ", ++Steps);   // Meter steps en macro de conversion a mm
          lcd_gotoxy(1,2);
          printf(lcd_putc, "Detener       <-");
       }
-      else if(Timer == 100)    // Si pasaron 100 ms
+
+      if((Timer % 6) == 0)          // Cada 2 ms
       {
-         output_high(ReelMotor.StepPIN);
-         output_low(ReelMotor.StepPIN);
+         output_high(WireMovementMotor.StepPIN);
+         output_low(WireMovementMotor.StepPIN);
       }
 
       delay_ms(1);
@@ -417,23 +419,24 @@ void Wire_Recharge()
    // Volvemos a mover el cable hasta detectarlo
 
    // Establecemos direccion de motores
-   output_bit(ReelMotor, Out);
-   output_bit(WireMovementMotor, Out);
+   output_bit(ReelMotor.DirectionPIN, Out);
+   output_bit(WireMovementMotor.DirectionPIN, Out);
 
-   for(Timer = 0; !WireSensor(read_adc()) && (Steps > 0); (Timer > 100) ? (Timer = 0) : (Timer++))
+   for(Timer = 1; !WireSensor(read_adc()) && (Steps > 0); (Timer >= 30000) ? (Timer = 1) : (Timer++))
    {
-      if(Timer == 50)          // Si pasaron 50 ms 
-      {
-         output_high(WireMovementMotor.StepPIN);
-         output_low(WireMovementMotor.StepPIN);
-         Steps--;
-      }
-      else if(Timer == 100)    // Si pasaron 100 ms
+      if((Timer % 20) == 0)    // Si pasaron 100 ms
       {
          output_high(ReelMotor.StepPIN);
          output_low(ReelMotor.StepPIN);
+         Steps--;
       }
-
+      
+      if((Timer % 10) == 0)          // Si pasaron 50 ms 
+      {
+         output_high(WireMovementMotor.StepPIN);
+         output_low(WireMovementMotor.StepPIN);
+      }
+      
       delay_ms(1);
    }
    
@@ -453,18 +456,19 @@ void Wire_Movement(long Length)
    output_bit(WireMovementMotor.DirectionPIN, Out);
    
    
-   for(long Timer = 0, ActualStep = 0; ActualStep < Steps ; (Timer > 100) ? (Timer = 0) : (Timer++))
+   for(long Timer = 1, ActualStep = 0; ActualStep < Steps ; (Timer >= 30000) ? (Timer = 0) : (Timer++))
    {
-      if(Timer == 50)          // Si pasaron 50 ms 
-      {
-         output_high(WireMovementMotor.StepPIN);
-         output_low(WireMovementMotor.StepPIN);
-         ActualStep++;
-      }
-      else if(Timer == 100)    // Si pasaron 100 ms
+      if((Timer % 20) == 0)    // Si pasaron 100 ms
       {
          output_high(ReelMotor.StepPIN);
          output_low(ReelMotor.StepPIN);
+         ActualStep++;
+      }
+      
+      if((Timer % 13) == 0)          // Si pasaron 50 ms 
+      {
+         output_high(WireMovementMotor.StepPIN);
+         output_low(WireMovementMotor.StepPIN);
       }
 
       delay_ms(1);
@@ -478,22 +482,22 @@ void Wire_Cut()
 {
    output_bit(WireCuttingMotor.DirectionPIN, Out);
 
-   for(int i = 0; i < 35; i++)
+   for(int i = 0; i < 120; i++)
    {
       output_high(WireCuttingMotor.StepPIN);
       output_low(WireCuttingMotor.StepPIN);
 
-      delay_ms(20);
+      delay_ms(10);
    }
-
+   
    output_bit(WireCuttingMotor.DirectionPIN, In);
 
-   for(int i = 0; i < 30; i++)
+   for(int i = 0; i < 120; i++)
    {
       output_high(WireCuttingMotor.StepPIN);
       output_low(WireCuttingMotor.StepPIN);
 
-      delay_ms(20);
+      delay_ms(10);
    }
 }
 
@@ -507,13 +511,13 @@ void WireReel_ChangeValue(long Length, int1 RestetBool)
          WireReel -= Length;
    
       // Acutalizar memoria eeprom
-      WireReel_eeprom(WireReel);
+      //WireReel_eeprom(WireReel);
    }
    
    // Prendemos los leds indicadores de longitud de carrete
    for(int i = 0; i < 5; i++)
    {
-      if(i < (WireReel * 5 / MaxWireLength))
+      if(i < ( WireReel * 5 / MaxWireLength ))
          output_high(IndicatorLEDS[i]);
       else
          output_low(IndicatorLEDS[i]);

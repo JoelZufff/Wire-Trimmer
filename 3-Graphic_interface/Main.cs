@@ -37,7 +37,6 @@ namespace Wire_Trimmer
             OrdenDataTable.Columns.Add("Cantidad", typeof(string));
             OrdenDataTable.Columns.Add("Longitud", typeof(string));
             OrdenDataTable.Columns.Add("Pelado", typeof(string));
-            OrdenDataTable.Columns.Add("Estatus", typeof(bool));
 
             ConectionButton_Click(sender, e);
         }
@@ -52,6 +51,12 @@ namespace Wire_Trimmer
 
                 ConectionPanel.Visible = false;
                 WireOrderPanel.Visible = true;
+
+                // Configuramos valores de WireOrder
+                ReelLabel.Text = WireReel.ToString();
+
+                if (WireReel > 30)
+                    AddButton.Enabled = true;
 
                 return;
             }
@@ -111,11 +116,6 @@ namespace Wire_Trimmer
                 case '+':   // Caracter de conexion
                     {
                         WireReel = int.Parse(SerialPort.ReadLine());
-
-                        // Configuramos valores de WireOrder
-                        ReelProgresBar.Value = WireReel;
-                        ReelLabel.Text = WireReel.ToString();
-
                         ConectionStatus = true;
                     }
                     break;
@@ -130,52 +130,43 @@ namespace Wire_Trimmer
 
         private void PrintButton_Click(object sender, EventArgs e)
         {
-            int pedido = 0;
+            DialogResult Answer = MessageBox.Show("¿Comenzar Impresion?", "Confirmacion", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation);
+            if (Answer == DialogResult.No)
+                return;
 
-            for (int i = 0; i < OrdenDataTable.Rows.Count; i++)
-            {
-                int cant = 0, lon = 0, pel = 0;
-                cant = int.Parse(OrdenDataTable.Rows[i]["Cantidad"].ToString());
-                lon = int.Parse(OrdenDataTable.Rows[i]["Longitud"].ToString());
-                pel = int.Parse(OrdenDataTable.Rows[i]["Pelado"].ToString());
-                pedido = pedido + (((2 * pel) + lon) * cant);
-            }
-            if (pedido > WireReel)
-                MessageBox.Show("Orden incorrecta, cable insuficiente");
-            else
-            {
-                MessageBox.Show("Orden correcta");
-            }
+            // Activamos timer para envio de ordenes
+            OrderTimer.Enabled = true;
         }
 
         private void Agregar_Click(object sender, EventArgs e)
         {
             // Agregamos orden a table de ordenes
-            OrdenDataTable.Rows.Add(Amount.Text, Length.Text, PeelingLength.Text);
+            OrdenDataTable.Rows.Add(Amount.Value, Length.Value, PeelingLength.Value);
 
             // Reiniciamos valores
-            Amount.Value = 0;
-            Length.Value = 0;
+            Amount.Value = 1;
+            Length.Value = 10;
             PeelingLength.Value = 5;
+
+            EraseButton.Enabled = true;
+            PrintButton.Enabled = true;
         }
 
         private void Eliminar_Click(object sender, EventArgs e)
         {
-            if (OrdenDataTable.Rows.Count == 0)
-                return;
-
             DialogResult Answer = MessageBox.Show("¿Esta seguro que desea eliminar la orden seleccionada?", "Confirmacion", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation);
             if (Answer == DialogResult.No)
                 return;
 
-            // Eliminar producto de lista
-            string Order = OrderDataGridView.CurrentRow.Cells[0].Value.ToString();
+            int Index = OrderDataGridView.CurrentRow.Index;
+            OrdenDataTable.Rows[Index].Delete();
 
-            // Eliminamos producto en DataTable mostrado
-            foreach (DataRow Row in OrdenDataTable.Rows)
-                if (Row[0].ToString() == Order) { Row.Delete(); break; }
+            if (OrdenDataTable.Rows.Count == 0)
+            {
+                EraseButton.Enabled = false;
+                PrintButton.Enabled = false;
+            }
         }
-
 
         // Configuracion de valores maximos
         private void Length_Click(object sender, EventArgs e)
@@ -202,7 +193,30 @@ namespace Wire_Trimmer
                 SerialPort.Write("-");      // Enviamos caracter de desconexion
                 SerialPort.Close();
             }
+        }
 
+        private void OrderTimer_Tick(object sender, EventArgs e)
+        {
+            if (OrdenDataTable.Rows.Count == 0)         // Ya no hay ordenes pendientes
+            {
+                OrderTimer.Enabled = false;
+                return;
+            }
+            
+            if (PendingOrder == false)     // Si no hay impresion pendiente
+            {
+                int Amount          = int.Parse(OrdenDataTable.Rows[0][0].ToString());
+                int Length          = int.Parse(OrdenDataTable.Rows[0][1].ToString());
+                int PeelingLength   = int.Parse(OrdenDataTable.Rows[0][2].ToString());
+
+                SerialPort.Write('*' + $"{Amount:D4}" + $"{Length:D5}" + $"{PeelingLength:D2}");
+                PendingOrder = true;
+
+                textBox1.Text = '*' + $"{Amount:D4}" + ',' + $"{Length:D5}" + ',' + $"{PeelingLength:D2}";
+
+                // Elmiminamos la fila
+                OrdenDataTable.Rows[0].Delete();
+            }
         }
     }
 }

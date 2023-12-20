@@ -42,7 +42,6 @@
             this.SerialPort = new System.IO.Ports.SerialPort(this.components);
             this.WireOrderPanel = new System.Windows.Forms.Panel();
             this.ReelLabel = new System.Windows.Forms.Label();
-            this.ReelProgresBar = new System.Windows.Forms.ProgressBar();
             this.PeelingLength = new System.Windows.Forms.NumericUpDown();
             this.Length = new System.Windows.Forms.NumericUpDown();
             this.Amount = new System.Windows.Forms.NumericUpDown();
@@ -51,6 +50,8 @@
             this.ConectionButton = new System.Windows.Forms.Button();
             this.ConectionProgressBar = new System.Windows.Forms.ProgressBar();
             this.ConectionTitle = new System.Windows.Forms.Label();
+            this.textBox1 = new System.Windows.Forms.TextBox();
+            this.OrderTimer = new System.Windows.Forms.Timer(this.components);
             ((System.ComponentModel.ISupportInitialize)(this.OrderDataGridView)).BeginInit();
             this.WireOrderPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.PeelingLength)).BeginInit();
@@ -66,7 +67,7 @@
             this.Title.AutoSize = true;
             this.Title.Font = new System.Drawing.Font("Corbel", 21.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Title.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
-            this.Title.Location = new System.Drawing.Point(51, 15);
+            this.Title.Location = new System.Drawing.Point(117, 15);
             this.Title.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.Title.Name = "Title";
             this.Title.Size = new System.Drawing.Size(327, 36);
@@ -190,8 +191,8 @@
             // WireOrderPanel
             // 
             this.WireOrderPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)));
+            this.WireOrderPanel.Controls.Add(this.textBox1);
             this.WireOrderPanel.Controls.Add(this.ReelLabel);
-            this.WireOrderPanel.Controls.Add(this.ReelProgresBar);
             this.WireOrderPanel.Controls.Add(this.PeelingLength);
             this.WireOrderPanel.Controls.Add(this.Length);
             this.WireOrderPanel.Controls.Add(this.PrintButton);
@@ -215,20 +216,12 @@
             this.ReelLabel.BackColor = System.Drawing.Color.Transparent;
             this.ReelLabel.Font = new System.Drawing.Font("Arial", 26.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ReelLabel.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
-            this.ReelLabel.Location = new System.Drawing.Point(394, 15);
+            this.ReelLabel.Location = new System.Drawing.Point(461, 15);
             this.ReelLabel.Name = "ReelLabel";
             this.ReelLabel.Size = new System.Drawing.Size(112, 40);
             this.ReelLabel.TabIndex = 11;
             this.ReelLabel.Text = "10000";
             this.ReelLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // ReelProgresBar
-            // 
-            this.ReelProgresBar.Location = new System.Drawing.Point(512, 21);
-            this.ReelProgresBar.Maximum = 10000;
-            this.ReelProgresBar.Name = "ReelProgresBar";
-            this.ReelProgresBar.Size = new System.Drawing.Size(157, 30);
-            this.ReelProgresBar.TabIndex = 10;
             // 
             // PeelingLength
             // 
@@ -337,6 +330,18 @@
             this.ConectionTitle.TabIndex = 1;
             this.ConectionTitle.Text = "Conexion";
             // 
+            // textBox1
+            // 
+            this.textBox1.Location = new System.Drawing.Point(458, 514);
+            this.textBox1.Name = "textBox1";
+            this.textBox1.Size = new System.Drawing.Size(191, 20);
+            this.textBox1.TabIndex = 12;
+            // 
+            // OrderTimer
+            // 
+            this.OrderTimer.Interval = 500;
+            this.OrderTimer.Tick += new System.EventHandler(this.OrderTimer_Tick);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -386,7 +391,8 @@
         private System.Windows.Forms.ProgressBar ConectionProgressBar;
         private System.Windows.Forms.Label ConectionTitle;
         private System.Windows.Forms.Label ReelLabel;
-        private System.Windows.Forms.ProgressBar ReelProgresBar;
+        private System.Windows.Forms.TextBox textBox1;
+        private System.Windows.Forms.Timer OrderTimer;
     }
 }
 
