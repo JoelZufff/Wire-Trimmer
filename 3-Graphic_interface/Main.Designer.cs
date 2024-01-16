@@ -50,7 +50,6 @@
             this.ConectionButton = new System.Windows.Forms.Button();
             this.ConectionProgressBar = new System.Windows.Forms.ProgressBar();
             this.ConectionTitle = new System.Windows.Forms.Label();
-            this.textBox1 = new System.Windows.Forms.TextBox();
             this.OrderTimer = new System.Windows.Forms.Timer(this.components);
             ((System.ComponentModel.ISupportInitialize)(this.OrderDataGridView)).BeginInit();
             this.WireOrderPanel.SuspendLayout();
@@ -78,8 +77,9 @@
             // 
             this.PrintButton.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.PrintButton.Enabled = false;
             this.PrintButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.PrintButton.Location = new System.Drawing.Point(273, 504);
+            this.PrintButton.Location = new System.Drawing.Point(283, 504);
             this.PrintButton.Margin = new System.Windows.Forms.Padding(2);
             this.PrintButton.Name = "PrintButton";
             this.PrintButton.Size = new System.Drawing.Size(145, 49);
@@ -191,7 +191,6 @@
             // WireOrderPanel
             // 
             this.WireOrderPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)));
-            this.WireOrderPanel.Controls.Add(this.textBox1);
             this.WireOrderPanel.Controls.Add(this.ReelLabel);
             this.WireOrderPanel.Controls.Add(this.PeelingLength);
             this.WireOrderPanel.Controls.Add(this.Length);
@@ -330,13 +329,6 @@
             this.ConectionTitle.TabIndex = 1;
             this.ConectionTitle.Text = "Conexion";
             // 
-            // textBox1
-            // 
-            this.textBox1.Location = new System.Drawing.Point(458, 514);
-            this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(191, 20);
-            this.textBox1.TabIndex = 12;
-            // 
             // OrderTimer
             // 
             this.OrderTimer.Interval = 500;
@@ -391,7 +383,6 @@
         private System.Windows.Forms.ProgressBar ConectionProgressBar;
         private System.Windows.Forms.Label ConectionTitle;
         private System.Windows.Forms.Label ReelLabel;
-        private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.Timer OrderTimer;
     }
 }

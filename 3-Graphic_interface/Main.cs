@@ -20,6 +20,7 @@ namespace Wire_Trimmer
         public bool ConectionStatus = false;
         public bool PendingOrder = false;
 
+        public int ComputerWireReel = 0;
         public int WireReel = 0;
 
         string[] Ports;
@@ -143,6 +144,9 @@ namespace Wire_Trimmer
             // Agregamos orden a table de ordenes
             OrdenDataTable.Rows.Add(Amount.Value, Length.Value, PeelingLength.Value);
 
+            WireReel -= (int) (Amount.Value * (2 * PeelingLength.Value + Length.Value));
+            ReelLabel.Text = WireReel.ToString();
+
             // Reiniciamos valores
             Amount.Value = 1;
             Length.Value = 10;
@@ -150,6 +154,9 @@ namespace Wire_Trimmer
 
             EraseButton.Enabled = true;
             PrintButton.Enabled = true;
+            
+            if(WireReel < 30)
+                AddButton.Enabled = false;
         }
 
         private void Eliminar_Click(object sender, EventArgs e)
@@ -159,6 +166,14 @@ namespace Wire_Trimmer
                 return;
 
             int Index = OrderDataGridView.CurrentRow.Index;
+
+            int Amount = int.Parse(OrdenDataTable.Rows[Index][0].ToString());
+            int Length = int.Parse(OrdenDataTable.Rows[Index][1].ToString());
+            int PeelingLength = int.Parse(OrdenDataTable.Rows[Index][2].ToString());
+            
+            WireReel += Amount * (2 * PeelingLength + Length);
+            ReelLabel.Text = WireReel.ToString();
+            
             OrdenDataTable.Rows[Index].Delete();
 
             if (OrdenDataTable.Rows.Count == 0)
@@ -166,6 +181,9 @@ namespace Wire_Trimmer
                 EraseButton.Enabled = false;
                 PrintButton.Enabled = false;
             }
+
+            if(WireReel > 30)
+                AddButton.Enabled = true;
         }
 
         // Configuracion de valores maximos
@@ -196,13 +214,13 @@ namespace Wire_Trimmer
         }
 
         private void OrderTimer_Tick(object sender, EventArgs e)
-        {
+        {   
             if (OrdenDataTable.Rows.Count == 0)         // Ya no hay ordenes pendientes
             {
                 OrderTimer.Enabled = false;
                 return;
             }
-            
+
             if (PendingOrder == false)     // Si no hay impresion pendiente
             {
                 int Amount          = int.Parse(OrdenDataTable.Rows[0][0].ToString());
@@ -211,8 +229,6 @@ namespace Wire_Trimmer
 
                 SerialPort.Write('*' + $"{Amount:D4}" + $"{Length:D5}" + $"{PeelingLength:D2}");
                 PendingOrder = true;
-
-                textBox1.Text = '*' + $"{Amount:D4}" + ',' + $"{Length:D5}" + ',' + $"{PeelingLength:D2}";
 
                 // Elmiminamos la fila
                 OrdenDataTable.Rows[0].Delete();
